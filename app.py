@@ -320,55 +320,37 @@ CHORDS = {
     # ... (add all diminished chords similarly)
 }
 
-# --- Mobile-Friendly Button CSS ---
+# --- MOBILE-FRIENDLY BUTTONS CSS ---
 st.markdown("""
 <style>
 /* Shrink buttons on mobile */
 @media (max-width: 600px) {
     div.stButton > button {
-        padding: 4px 8px !important;
-        font-size: 12px !important;
-        margin-bottom: 4px !important;
-        width: 100% !important;
+        padding: 4px 8px;
+        font-size: 12px;
+        margin-bottom: 4px;
     }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Session state initialization ---
-def init_session_state():
-    defaults = {
-        "current_chord": None,
-        "attempts": {},
-        "show_result": False,
-        "last_attempt": None,
-        "selected_base_chords": [],
-    }
-    for key, val in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = val
-
-init_session_state()
-
-# --- Group chords by base ---
-def group_chords(chords):
-    grouped = defaultdict(list)
-    for chord_name in chords.keys():
-        words = chord_name.split()
-        if "major" in words or "minor" in words or "diminished" in words:
-            if "seventh" in chord_name or "flat five" in chord_name or "dominant" in chord_name:
-                base = " ".join(words[:3])
-            else:
-                base = " ".join(words[:2])
+# --- Group chords by base name ---
+grouped_chords = defaultdict(list)
+for chord_name in CHORDS.keys():
+    words = chord_name.split()
+    if "major" in words or "minor" in words or "diminished" in words:
+        if "seventh" in chord_name or "flat five" in chord_name or "dominant" in chord_name:
+            base = " ".join(words[:3])
         else:
             base = " ".join(words[:2])
-        grouped[base].append(chord_name)
-    return grouped
-
-grouped_chords = group_chords(CHORDS)
+    else:
+        base = " ".join(words[:2])
+    grouped_chords[base].append(chord_name)
 
 # --- Sidebar selection ---
 st.sidebar.title("Select Chords for Quiz")
+selected_base_chords = []
+
 categories = {"Major": [], "Minor": [], "Diminished": [], "Sevenths & Extensions": []}
 
 for base in grouped_chords.keys():
@@ -384,7 +366,6 @@ for base in grouped_chords.keys():
 for cat in categories:
     categories[cat].sort()
 
-selected_base_chords = []
 for cat, bases in categories.items():
     with st.sidebar.expander(cat, expanded=True):
         for base in bases:
@@ -395,20 +376,26 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
-st.session_state.selected_base_chords = selected_base_chords
+# --- Build selected chords dict ---
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
-# --- Pick initial chord ---
-if st.session_state.current_chord not in all_selected_chords:
+# --- Initialize session state ---
+if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
     st.session_state.current_chord = random.choice(all_selected_chords)
-    st.session_state.attempts[st.session_state.current_chord] = []
 
-# --- Next chord button ---
+if "attempts" not in st.session_state:
+    st.session_state.attempts = {}
+
+if "show_result" not in st.session_state:
+    st.session_state.show_result = False
+if "last_attempt" not in st.session_state:
+    st.session_state.last_attempt = None
+
+# --- Next chord ---
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
-    if remaining_chords:
-        st.session_state.current_chord = random.choice(remaining_chords)
+    st.session_state.current_chord = random.choice(remaining_chords) if remaining_chords else random.choice(all_selected_chords)
     st.session_state.attempts[st.session_state.current_chord] = []
     st.session_state.show_result = False
     st.session_state.last_attempt = None
@@ -416,8 +403,8 @@ if st.button("Next Chord"):
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# --- Handle attempts ---
-def handle_attempt(option):
+# --- Handle button clicks ---
+def handle_option(option):
     if chord_key not in st.session_state.attempts:
         st.session_state.attempts[chord_key] = []
     if option not in st.session_state.attempts[chord_key]:
@@ -425,40 +412,37 @@ def handle_attempt(option):
     st.session_state.show_result = True
     st.session_state.last_attempt = option
 
-# --- Responsive columns ---
-def chunk(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+# --- Display responsive columns ---
+sorted_bases = selected_base_chords.copy()
+random.shuffle(sorted_bases)  # randomize order of bases
 
-# Determine max columns: 1 on mobile, up to 4 on desktop
-max_columns = 1 if st.sidebar.checkbox("Mobile Mode Preview", value=False) else 4
-column_chunks = list(chunk(sorted(selected_base_chords), max_columns))
+# Estimate number of columns based on screen width
+# Desktop: up to 6 columns; Mobile: 1 column
+screen_width = st.experimental_get_query_params().get("screen_width", ["1024"])[0]  # fallback width
+screen_width = int(screen_width)
+num_cols = 1 if screen_width <= 600 else min(6, len(sorted_bases))
 
-for chunk_group in column_chunks:
-    cols = st.columns(len(chunk_group))
-    for col, base in zip(cols, chunk_group):
-        with col:
-            st.write(f"**{base}**")
-            options = selected_chords_dict[base]
+cols = st.columns(num_cols)
+for idx, base in enumerate(sorted_bases):
+    col = cols[idx % num_cols]  # wrap around if more bases than columns
+    with col:
+        st.write(f"**{base}**")
+        options = selected_chords_dict[base].copy()
+        random.shuffle(options)  # randomize button order
 
-            # Root first
-            root_options = [opt for opt in options if "root" in opt.lower()]
-            other_options = [opt for opt in options if "root" not in opt.lower()]
-            options_sorted = root_options + sorted(other_options)
+        for option in options:
+            if st.button(option, key=f"{chord_key}_{option}"):
+                handle_option(option)
 
-            for option in options_sorted:
-                if st.button(option, key=f"{chord_key}_{option}"):
-                    handle_attempt(option)
+            # Feedback coloring
+            attempts = st.session_state.attempts.get(chord_key, [])
+            if option in attempts:
+                if option == chord_key:
+                    st.success(f"{option} ✅")
+                else:
+                    st.error(f"{option} ❌")
 
-                # Feedback
-                attempts = st.session_state.attempts.get(chord_key, [])
-                if option in attempts:
-                    if option == chord_key:
-                        st.success(f"{option} ✅")
-                    else:
-                        st.error(f"{option} ❌")
-
-# --- Bottom feedback ---
+# --- Display bottom feedback ---
 attempts = st.session_state.attempts.get(chord_key, [])
 if attempts and st.session_state.last_attempt:
     if st.session_state.last_attempt == chord_key:

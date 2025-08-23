@@ -407,10 +407,10 @@ for col_idx, base in enumerate(sorted_bases):
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
         
-        # Move the exact base chord (root) to the top
-        options_sorted = sorted([opt for opt in options if opt != base])
-        if base in options:
-            options_sorted = [base] + options_sorted
+        # Move the root chord to the top
+        root_options = [opt for opt in options if "root" in opt.lower()]
+        other_options = [opt for opt in options if "root" not in opt.lower()]
+        options_sorted = root_options + sorted(other_options)
         
         for option in options_sorted:
             if st.button(option, key=f"{option}"):

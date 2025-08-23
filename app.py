@@ -396,10 +396,8 @@ chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
 # Display answer buttons in vertical columns
-cols = st.columns(len(selected_base_chords))
-
-for col_idx, base in enumerate(selected_base_chords):
-    with cols[col_idx]:
+for col_idx, base in enumerate(sorted(selected_base_chords)):
+    with st.columns(len(selected_base_chords))[col_idx]:
         st.write(f"**{base}**")
         for option in selected_chords_dict[base]:
             if st.button(option, key=f"{option}"):

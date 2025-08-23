@@ -395,7 +395,8 @@ if "last_attempt" not in st.session_state:
 # --- Next chord ---
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
-    st.session_state.current_chord = random.choice(remaining_chords) if remaining_chords else random.choice(all_selected_chords)
+    if remaining_chords:
+        st.session_state.current_chord = random.choice(remaining_chords)
     st.session_state.attempts[st.session_state.current_chord] = []
     st.session_state.show_result = False
     st.session_state.last_attempt = None
@@ -405,36 +406,34 @@ st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
 # --- Handle button clicks ---
 def handle_option(option):
-    if chord_key not in st.session_state.attempts:
-        st.session_state.attempts[chord_key] = []
-    if option not in st.session_state.attempts[chord_key]:
-        st.session_state.attempts[chord_key].append(option)
-    st.session_state.show_result = True
-    st.session_state.last_attempt = option
+    clicked = st.button(option, key=f"{chord_key}_{option}")
+    if clicked:
+        if chord_key not in st.session_state.attempts:
+            st.session_state.attempts[chord_key] = []
+        if option not in st.session_state.attempts[chord_key]:
+            st.session_state.attempts[chord_key].append(option)
+        st.session_state.show_result = True
+        st.session_state.last_attempt = option
+    return clicked
 
-# --- Display responsive columns ---
-sorted_bases = selected_base_chords.copy()
-random.shuffle(sorted_bases)  # randomize order of bases
+# --- Display columns of options with feedback ---
+sorted_bases = sorted(selected_base_chords)
+cols = st.columns(len(sorted_bases))
 
-# Estimate number of columns based on screen width
-# Desktop: up to 6 columns; Mobile: 1 column
-screen_width = st.experimental_get_query_params().get("screen_width", ["1024"])[0]  # fallback width
-screen_width = int(screen_width)
-num_cols = 1 if screen_width <= 600 else min(6, len(sorted_bases))
-
-cols = st.columns(num_cols)
-for idx, base in enumerate(sorted_bases):
-    col = cols[idx % num_cols]  # wrap around if more bases than columns
-    with col:
+for col_idx, base in enumerate(sorted_bases):
+    with cols[col_idx]:
         st.write(f"**{base}**")
-        options = selected_chords_dict[base].copy()
-        random.shuffle(options)  # randomize button order
+        options = selected_chords_dict[base]
 
-        for option in options:
-            if st.button(option, key=f"{chord_key}_{option}"):
-                handle_option(option)
+        # Root chord first
+        root_options = [opt for opt in options if "root" in opt.lower()]
+        other_options = [opt for opt in options if "root" not in opt.lower()]
+        options_sorted = root_options + sorted(other_options)
 
-            # Feedback coloring
+        for option in options_sorted:
+            handle_option(option)
+
+            # Feedback coloring for attempted options
             attempts = st.session_state.attempts.get(chord_key, [])
             if option in attempts:
                 if option == chord_key:

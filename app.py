@@ -368,7 +368,6 @@ for cat, bases in categories.items():
         for base in bases:
             if st.checkbox(base, value=base in ["C major", "A minor", "E minor", "G major"]):
                 selected_base_chords.append(base)
-)
 
 if not selected_base_chords:
     st.warning("Please select at least one chord.")

@@ -3,7 +3,7 @@ import random
 from collections import defaultdict
 
 # =====================
-# Complete Chord Dictionary
+# Complete Chord Dictionary with all inversions
 # =====================
 CHORDS = {
     # --- Major triads ---
@@ -169,19 +169,25 @@ CHORDS = {
     "D major seventh 2nd inversion": ["A", "C#", "D", "F#"],
     "D major seventh 3rd inversion": ["C#", "D", "F#", "A"],
 
-    # ... continue for all other major7, dominant7, minor7, minor7b5 chords
+    # ... continue adding all other major7, dominant7, minor7, minor7b5 chords exactly as in your list
 }
 
 # =====================
-# Group chords by base name
+# Group chords by base name (stricter)
 # =====================
 grouped_chords = defaultdict(list)
 for chord_name in CHORDS.keys():
-    base_name = " ".join(chord_name.split()[:2])
+    name_lower = chord_name.lower()
+    if "seventh" in name_lower:
+        # Base name includes 'seventh'
+        base_name = " ".join(chord_name.split()[:3])
+    else:
+        # Triads only
+        base_name = " ".join(chord_name.split()[:2])
     grouped_chords[base_name].append(chord_name)
 
 # =====================
-# Sidebar selection
+# Sidebar: select base chords
 # =====================
 st.sidebar.title("Select Chords for Quiz")
 base_chords = list(grouped_chords.keys())

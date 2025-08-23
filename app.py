@@ -423,7 +423,7 @@ def colored_button(option):
     """
 
 # --- Handle HTML button clicks ---
-clicked_option = st.experimental_get_query_params().get("choice")
+clicked_option = st.query_params.get("choice")
 if clicked_option:
     clicked_option = clicked_option[0]
     if chord_key not in st.session_state.attempts:

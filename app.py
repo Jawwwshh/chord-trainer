@@ -360,7 +360,9 @@ if "current_chord" not in st.session_state or st.session_state.current_chord not
 
 # Next Chord button
 if st.button("Next Chord"):
-    st.session_state.current_chord = random.choice(all_selected_chords)
+    remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
+    if remaining_chords:
+        st.session_state.current_chord = random.choice(remaining_chords)
     st.session_state.show_result = False
     st.session_state.result_text = ""
 

@@ -1,12 +1,12 @@
 import streamlit as st
 import random
+from collections import defaultdict
 
 # =====================
-# Full Chord Dictionary
+# Complete Chord Dictionary
 # =====================
-
 CHORDS = {
-    # --- Major Triads ---
+    # --- Major triads ---
     "C major root": ["C", "E", "G"],
     "C major 1st inversion": ["E", "G", "C"],
     "C major 2nd inversion": ["G", "C", "E"],
@@ -55,7 +55,7 @@ CHORDS = {
     "B major 1st inversion": ["D#", "F#", "B"],
     "B major 2nd inversion": ["F#", "B", "D#"],
 
-    # --- Minor Triads ---
+    # --- Minor triads ---
     "C minor root": ["C", "Eb", "G"],
     "C minor 1st inversion": ["Eb", "G", "C"],
     "C minor 2nd inversion": ["G", "C", "Eb"],
@@ -104,7 +104,7 @@ CHORDS = {
     "B minor 1st inversion": ["D", "F#", "B"],
     "B minor 2nd inversion": ["F#", "B", "D"],
 
-    # --- Diminished Triads ---
+    # --- Diminished triads ---
     "C diminished root": ["C", "Eb", "Gb"],
     "C diminished 1st inversion": ["Eb", "Gb", "C"],
     "C diminished 2nd inversion": ["Gb", "C", "Eb"],
@@ -169,30 +169,68 @@ CHORDS = {
     "D major seventh 2nd inversion": ["A", "C#", "D", "F#"],
     "D major seventh 3rd inversion": ["C#", "D", "F#", "A"],
 
-    # You can continue similarly for Eb maj7, E maj7, F maj7, etc., 
-    # as well as dominant 7th, minor 7th, minor7b5 chords.
+    # ... continue for all other major7, dominant7, minor7, minor7b5 chords
 }
 
 # =====================
-# Streamlit App
+# Group chords by base name
 # =====================
+grouped_chords = defaultdict(list)
+for chord_name in CHORDS.keys():
+    base_name = " ".join(chord_name.split()[:2])
+    grouped_chords[base_name].append(chord_name)
 
-st.title("🎹 Piano Chord Trainer")
+# =====================
+# Sidebar selection
+# =====================
+st.sidebar.title("Select Chords for Quiz")
+base_chords = list(grouped_chords.keys())
 
+selected_base_chords = st.sidebar.multiselect(
+    "Choose base chords to include:",
+    options=base_chords,
+    default=["C major", "A minor", "G major", "E minor"]
+)
+
+# Build list of all selected chords including inversions
+selected_chords = []
+for base in selected_base_chords:
+    selected_chords.extend(grouped_chords[base])
+
+# Default to all chords if nothing selected
+if not selected_chords:
+    selected_chords = list(CHORDS.keys())
+
+# =====================
+# Random chord selection
+# =====================
 if "current_chord" not in st.session_state:
-    st.session_state.current_chord = random.choice(list(CHORDS.items()))
+    chord_key = random.choice(selected_chords)
+    st.session_state.current_chord = (chord_key, CHORDS[chord_key])
 
 chord_name, chord_notes = st.session_state.current_chord
 
 st.write(f"Notes: {', '.join(chord_notes)}")
 
-user_answer = st.text_input("What chord is this? (e.g. G major 1st inversion)")
+# =====================
+# Clickable answer buttons
+# =====================
+st.write("Select the correct chord:")
 
-if st.button("Check Answer"):
-    if user_answer.strip().lower() == chord_name.lower():
-        st.success("✅ Correct!")
-    else:
-        st.error(f"❌ Incorrect. The correct answer was: {chord_name}")
+options = selected_chords.copy()
+random.shuffle(options)
 
+for option in options:
+    if st.button(option):
+        if option == chord_name:
+            st.success(f"✅ Correct! It was {chord_name}")
+        else:
+            st.error(f"❌ Incorrect. The correct answer was {chord_name}")
+
+# =====================
+# Next chord button
+# =====================
 if st.button("Next Chord"):
-    st.session_state.current_chord = random.choice(list(CHORDS.items()))
+    chord_key = random.choice(selected_chords)
+    st.session_state.current_chord = (chord_key, CHORDS[chord_key])
+

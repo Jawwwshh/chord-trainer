@@ -405,8 +405,14 @@ cols = st.columns(len(sorted_bases))
 for col_idx, base in enumerate(sorted_bases):
     with cols[col_idx]:
         st.write(f"**{base}**")
-        # Sort the options alphabetically
-        for option in sorted(selected_chords_dict[base]):
+        options = selected_chords_dict[base]
+        
+        # Move the exact base chord (root) to the top
+        options_sorted = sorted([opt for opt in options if opt != base])
+        if base in options:
+            options_sorted = [base] + options_sorted
+        
+        for option in options_sorted:
             if st.button(option, key=f"{option}"):
                 if option == chord_key:
                     st.session_state.result_text = f"✅ Correct! It was {chord_key}"

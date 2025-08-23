@@ -395,11 +395,18 @@ if st.button("Next Chord"):
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# Display answer buttons in vertical columns
-for col_idx, base in enumerate(sorted(selected_base_chords)):
-    with st.columns(len(selected_base_chords))[col_idx]:
+# Sort the selected base chords alphabetically for columns
+sorted_bases = sorted(selected_base_chords)
+
+# Create the columns once
+cols = st.columns(len(sorted_bases))
+
+# Populate each column
+for col_idx, base in enumerate(sorted_bases):
+    with cols[col_idx]:
         st.write(f"**{base}**")
-        for option in selected_chords_dict[base]:
+        # Sort the options alphabetically
+        for option in sorted(selected_chords_dict[base]):
             if st.button(option, key=f"{option}"):
                 if option == chord_key:
                     st.session_state.result_text = f"✅ Correct! It was {chord_key}"

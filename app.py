@@ -27,52 +27,57 @@ for chord_name in CHORDS.keys():
         base = " ".join(chord_name.split()[:2])
     grouped_chords[base].append(chord_name)
 
+# Alphabetical list of base chords
 base_chords = sorted(grouped_chords.keys())
 
-# Sidebar chord selection
+# Sidebar: select which chords to include
 st.sidebar.title("Select Chords for Quiz")
 selected_base_chords = st.sidebar.multiselect(
     "Choose base chords to include:",
     options=base_chords,
-    default=["C major", "A minor", "G major", "E minor"]
+    default=["A minor", "C major", "E minor", "G major"]
 )
 
-# Build list of all selected chords including inversions
-selected_chords = []
-for base in selected_base_chords:
-    selected_chords.extend(grouped_chords[base])
-if not selected_chords:
-    selected_chords = list(CHORDS.keys())
+# Build selected chords dictionary for easy column layout
+selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 
 # Initialize session state
 if "current_chord" not in st.session_state:
-    st.session_state.current_chord = random.choice(selected_chords)
-    st.session_state.options = sorted(selected_chords)
+    # Random chord from selected chords
+    st.session_state.current_chord = random.choice(
+        [ch for sublist in selected_chords_dict.values() for ch in sublist]
+    )
     st.session_state.show_result = False
     st.session_state.result_text = ""
 
-# Handle Next Chord
-if st.button("Next Chord"):
-    st.session_state.current_chord = random.choice(selected_chords)
-    st.session_state.show_result = False
-    st.session_state.result_text = ""
-
-# Display current chord notes
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# Display answer buttons in columns
-cols = st.columns(min(4, len(selected_chords)))  # adjust number of columns
-for idx, option in enumerate(st.session_state.options):
-    col = cols[idx % len(cols)]
-    if col.button(option):
-        if option == chord_key:
-            st.session_state.result_text = f"✅ Correct! It was {chord_key}"
-        else:
-            st.session_state.result_text = f"❌ Incorrect. The correct answer was {chord_key}"
-        st.session_state.show_result = True
+# Answer buttons in vertical columns per chord
+cols = st.columns(len(selected_base_chords))
+
+for col_idx, base in enumerate(selected_base_chords):
+    with cols[col_idx]:
+        st.write(f"**{base}**")
+        for option in selected_chords_dict[base]:
+            # Use unique key to prevent conflicts
+            if st.button(option, key=f"{option}"):
+                if option == chord_key:
+                    st.session_state.result_text = f"✅ Correct! It was {chord_key}"
+                else:
+                    st.session_state.result_text = f"❌ Incorrect. The correct answer was {chord_key}"
+                st.session_state.show_result = True
 
 # Show result
 if st.session_state.show_result:
     st.write(st.session_state.result_text)
+
+# Next chord button
+if st.button("Next Chord"):
+    # Pick a new chord from all selected chords
+    st.session_state.current_chord = random.choice(
+        [ch for sublist in selected_chords_dict.values() for ch in sublist]
+    )
+    st.session_state.show_result = False
+    st.session_state.result_text = ""
 

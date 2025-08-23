@@ -335,13 +335,39 @@ for chord_name in CHORDS.keys():
         base = " ".join(words[:2])
     grouped_chords[base].append(chord_name)
 
-# Sidebar: select which chords to include
-base_chords = sorted(grouped_chords.keys())
+# Sidebar: grouped checkboxes
 st.sidebar.title("Select Chords for Quiz")
-selected_base_chords = st.sidebar.multiselect(
-    "Choose base chords:",
-    options=base_chords,
-    default=["C major", "A minor", "E minor", "G major"]
+selected_base_chords = []
+
+# Define categories for grouping
+categories = {
+    "Major": [],
+    "Minor": [],
+    "Diminished": [],
+    "Sevenths & Extensions": []
+}
+
+# Assign chord bases to categories
+for base in grouped_chords.keys():
+    if "major" in base and "seventh" not in base:
+        categories["Major"].append(base)
+    elif "minor" in base and "seventh" not in base:
+        categories["Minor"].append(base)
+    elif "diminished" in base:
+        categories["Diminished"].append(base)
+    else:
+        categories["Sevenths & Extensions"].append(base)
+
+# Sort each category alphabetically
+for cat in categories:
+    categories[cat].sort()
+
+# Create checkboxes for each category
+for cat, bases in categories.items():
+    with st.sidebar.expander(cat, expanded=True):
+        for base in bases:
+            if st.checkbox(base, value=base in ["C major", "A minor", "E minor", "G major"]):
+                selected_base_chords.append(base)
 )
 
 if not selected_base_chords:

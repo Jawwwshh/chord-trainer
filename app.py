@@ -334,7 +334,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Group chords by exact base name for columns ---
+# --- Group chords by base name ---
 grouped_chords = defaultdict(list)
 for chord_name in CHORDS.keys():
     words = chord_name.split()
@@ -347,16 +347,11 @@ for chord_name in CHORDS.keys():
         base = " ".join(words[:2])
     grouped_chords[base].append(chord_name)
 
-# --- Sidebar: grouped checkboxes ---
+# --- Sidebar selection ---
 st.sidebar.title("Select Chords for Quiz")
 selected_base_chords = []
 
-categories = {
-    "Major": [],
-    "Minor": [],
-    "Diminished": [],
-    "Sevenths & Extensions": []
-}
+categories = {"Major": [], "Minor": [], "Diminished": [], "Sevenths & Extensions": []}
 
 for base in grouped_chords.keys():
     if "major" in base and "seventh" not in base:
@@ -381,7 +376,7 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
-# --- Build selected chords dictionary ---
+# --- Build selected chords dict ---
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
@@ -392,50 +387,68 @@ if "current_chord" not in st.session_state or st.session_state.current_chord not
 if "attempts" not in st.session_state:
     st.session_state.attempts = {}
 
-# --- Next Chord button ---
+# --- Next chord ---
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
     if remaining_chords:
         st.session_state.current_chord = random.choice(remaining_chords)
     st.session_state.attempts[st.session_state.current_chord] = []
 
-# --- Display current chord notes ---
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# --- Sort selected base chords for columns ---
+# --- Helper function to render colored buttons ---
+def colored_button(option):
+    attempts = st.session_state.attempts.get(chord_key, [])
+    color = "#f0f0f0"  # default
+    if option in attempts:
+        color = "#90ee90" if option == chord_key else "#f08080"
+    return f"""
+    <form action="/">
+        <input type="submit" value="{option}" style="
+            background-color:{color};
+            border:none;
+            color:black;
+            padding:10px 20px;
+            text-align:center;
+            text-decoration:none;
+            display:block;
+            margin:5px 0;
+            width:100%;
+            font-size:16px;
+            border-radius:5px;
+        ">
+        <input type="hidden" name="choice" value="{option}">
+    </form>
+    """
+
+# --- Handle HTML button clicks ---
+clicked_option = st.experimental_get_query_params().get("choice")
+if clicked_option:
+    clicked_option = clicked_option[0]
+    if chord_key not in st.session_state.attempts:
+        st.session_state.attempts[chord_key] = []
+    if clicked_option not in st.session_state.attempts[chord_key]:
+        st.session_state.attempts[chord_key].append(clicked_option)
+
+# --- Display columns of options ---
 sorted_bases = sorted(selected_base_chords)
 cols = st.columns(len(sorted_bases))
 
-# --- Helper function for button color ---
-def get_button_style(option):
-    attempts = st.session_state.attempts.get(chord_key, [])
-    if option in attempts:
-        if option == chord_key:
-            return "background-color: lightgreen; color: black;"
-        else:
-            return "background-color: lightcoral; color: white;"
-    return ""
-
-# --- Populate columns ---
 for col_idx, base in enumerate(sorted_bases):
     with cols[col_idx]:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
 
-        # Root chord on top
+        # Root chord first
         root_options = [opt for opt in options if "root" in opt.lower()]
         other_options = [opt for opt in options if "root" not in opt.lower()]
         options_sorted = root_options + sorted(other_options)
 
         for option in options_sorted:
-            style = get_button_style(option)
-            if st.button(option, key=f"{option}"):
-                if chord_key not in st.session_state.attempts:
-                    st.session_state.attempts[chord_key] = []
-                st.session_state.attempts[chord_key].append(option)
+            st.markdown(colored_button(option), unsafe_allow_html=True)
 
-# --- Display results inline ---
+# --- Display feedback ---
 attempts = st.session_state.attempts.get(chord_key, [])
 if attempts:
     last_attempt = attempts[-1]

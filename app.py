@@ -320,16 +320,23 @@ CHORDS = {
     # ... (add all diminished chords similarly)
 }
 
-# Group chords by base name for columns
+# Group chords by exact base name for columns
 grouped_chords = defaultdict(list)
 for chord_name in CHORDS.keys():
-    # The base is first two words (e.g., "C major" or "A minor")
-    base = " ".join(chord_name.split()[:2])
+    # Determine the base: include chord type (major, minor, diminished, etc.) but exclude extensions
+    words = chord_name.split()
+    if "major" in words or "minor" in words or "diminished" in words:
+        # Base is just the triad or seventh type
+        if "seventh" in chord_name or "flat five" in chord_name or "dominant" in chord_name:
+            base = " ".join(words[:3])  # e.g., "A minor seventh"
+        else:
+            base = " ".join(words[:2])  # e.g., "A minor"
+    else:
+        base = " ".join(words[:2])
     grouped_chords[base].append(chord_name)
 
-base_chords = sorted(grouped_chords.keys())
-
 # Sidebar: select which chords to include
+base_chords = sorted(grouped_chords.keys())
 st.sidebar.title("Select Chords for Quiz")
 selected_base_chords = st.sidebar.multiselect(
     "Choose base chords:",
@@ -341,7 +348,7 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
-# Build selected chords dictionary
+# Build selected chords dictionary using exact base match
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 

@@ -418,16 +418,23 @@ def handle_option(option):
 
 # --- Display columns of options with feedback ---
 sorted_bases = sorted(selected_base_chords)
-num_cols = min(3, len(sorted_bases))  # maximum 3 columns
+num_cols = len(sorted_bases)  # default: all bases in separate columns
+
+# Detect mobile via user-agent (simple hack)
+import streamlit as stjs  # uses st.experimental_get_query_params
+mobile = stjs.experimental_get_query_params().get("mobile", ["0"])[0] == "1"
+
+if mobile:
+    num_cols = min(3, len(sorted_bases))  # max 3 columns on mobile
+
 cols = st.columns(num_cols)
 
 for idx, base in enumerate(sorted_bases):
-    col = cols[idx % num_cols]  # wrap around columns
+    col = cols[idx % num_cols]
     with col:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
 
-        # Root chord first
         root_options = [opt for opt in options if "root" in opt.lower()]
         other_options = [opt for opt in options if "root" not in opt.lower()]
         options_sorted = root_options + sorted(other_options)
@@ -435,7 +442,6 @@ for idx, base in enumerate(sorted_bases):
         for option in options_sorted:
             handle_option(option)
 
-            # Feedback coloring for attempted options
             attempts = st.session_state.attempts.get(chord_key, [])
             if option in attempts:
                 if option == chord_key:

@@ -388,9 +388,11 @@ all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in
 # --- Initialize session state ---
 if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
     st.session_state.current_chord = random.choice(all_selected_chords)
+
+if "attempts" not in st.session_state:
     st.session_state.attempts = {}
 
-# Next Chord button
+# --- Next Chord button ---
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
     if remaining_chords:
@@ -401,32 +403,43 @@ if st.button("Next Chord"):
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# --- Sort the selected base chords alphabetically for columns ---
+# --- Sort selected base chords for columns ---
 sorted_bases = sorted(selected_base_chords)
 cols = st.columns(len(sorted_bases))
 
-# --- Function to get inline button style ---
+# --- Helper function for button color ---
 def get_button_style(option):
     attempts = st.session_state.attempts.get(chord_key, [])
-    if option == chord_key:
-        return "background-color: #4CAF50; color: white;"  # green
-    elif option in attempts:
-        return "background-color: #f44336; color: white;"  # red
+    if option in attempts:
+        if option == chord_key:
+            return "background-color: lightgreen; color: black;"
+        else:
+            return "background-color: lightcoral; color: white;"
     return ""
 
-# --- Populate columns with buttons and inline feedback ---
+# --- Populate columns ---
 for col_idx, base in enumerate(sorted_bases):
     with cols[col_idx]:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
-        
-        # Move root chord to top
+
+        # Root chord on top
         root_options = [opt for opt in options if "root" in opt.lower()]
         other_options = [opt for opt in options if "root" not in opt.lower()]
         options_sorted = root_options + sorted(other_options)
-        
+
         for option in options_sorted:
             style = get_button_style(option)
             if st.button(option, key=f"{option}"):
-                # Track attempt
-                st.session_state.attempts.setdefault(chord_key, []).append(option)
+                if chord_key not in st.session_state.attempts:
+                    st.session_state.attempts[chord_key] = []
+                st.session_state.attempts[chord_key].append(option)
+
+# --- Display results inline ---
+attempts = st.session_state.attempts.get(chord_key, [])
+if attempts:
+    last_attempt = attempts[-1]
+    if last_attempt == chord_key:
+        st.success(f"✅ Correct! It was {chord_key}")
+    else:
+        st.error(f"❌ Incorrect. Try again!")

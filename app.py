@@ -400,36 +400,22 @@ st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 # --- Helper function to render colored buttons ---
 def colored_button(option):
     attempts = st.session_state.attempts.get(chord_key, [])
-    color = "#f0f0f0"  # default
+    # Determine color
     if option in attempts:
         color = "#90ee90" if option == chord_key else "#f08080"
-    return f"""
-    <form action="/">
-        <input type="submit" value="{option}" style="
-            background-color:{color};
-            border:none;
-            color:black;
-            padding:10px 20px;
-            text-align:center;
-            text-decoration:none;
-            display:block;
-            margin:5px 0;
-            width:100%;
-            font-size:16px;
-            border-radius:5px;
-        ">
-        <input type="hidden" name="choice" value="{option}">
-    </form>
-    """
+    else:
+        color = "#f0f0f0"
 
-# --- Handle HTML button clicks ---
-clicked_option = st.query_params.get("choice")
-if clicked_option:
-    clicked_option = clicked_option[0]
-    if chord_key not in st.session_state.attempts:
-        st.session_state.attempts[chord_key] = []
-    if clicked_option not in st.session_state.attempts[chord_key]:
-        st.session_state.attempts[chord_key].append(clicked_option)
+    # Create button
+    clicked = st.button(option, key=option)
+    if clicked:
+        if chord_key not in st.session_state.attempts:
+            st.session_state.attempts[chord_key] = []
+        st.session_state.attempts[chord_key].append(option)
+        st.session_state.show_result = True
+        st.session_state.last_attempt = option
+
+    return color
 
 # --- Display columns of options ---
 sorted_bases = sorted(selected_base_chords)
@@ -446,7 +432,19 @@ for col_idx, base in enumerate(sorted_bases):
         options_sorted = root_options + sorted(other_options)
 
         for option in options_sorted:
-            st.markdown(colored_button(option), unsafe_allow_html=True)
+          color = colored_button(option)
+          st.markdown(f"""
+              <div style="
+                  background-color:{color};
+                  border:none;
+                  color:black;
+                  padding:10px 20px;
+                  text-align:center;
+                  margin:5px 0;
+                  border-radius:5px;">
+                  {option}
+              </div>
+          """, unsafe_allow_html=True)
 
 # --- Display feedback ---
 attempts = st.session_state.attempts.get(chord_key, [])

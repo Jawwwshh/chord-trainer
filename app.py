@@ -418,10 +418,12 @@ def handle_option(option):
 
 # --- Display columns of options with feedback ---
 sorted_bases = sorted(selected_base_chords)
-cols = st.columns(len(sorted_bases))
+num_cols = min(3, len(sorted_bases))  # maximum 3 columns
+cols = st.columns(num_cols)
 
-for col_idx, base in enumerate(sorted_bases):
-    with cols[col_idx]:
+for idx, base in enumerate(sorted_bases):
+    col = cols[idx % num_cols]  # wrap around columns
+    with col:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
 

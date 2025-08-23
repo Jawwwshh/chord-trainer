@@ -2,7 +2,7 @@ import streamlit as st
 import random
 from collections import defaultdict
 
-# Example CHORDS dictionary
+# Example subset of chords
 CHORDS = {
     "C major root": ["C", "E", "G"],
     "C major 1st inversion": ["E", "G", "C"],
@@ -47,34 +47,29 @@ if not selected_chords:
 # Initialize session state
 if "current_chord" not in st.session_state:
     st.session_state.current_chord = random.choice(selected_chords)
-    st.session_state.result = ""
-    st.session_state.shuffled_options = sorted(selected_chords)
+    st.session_state.result = None
 
-# Function to load a new chord
-def next_chord():
-    st.session_state.current_chord = random.choice(selected_chords)
-    st.session_state.result = ""
-    st.session_state.shuffled_options = sorted(selected_chords)
-
-# Display notes
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# Answer buttons in horizontal layout
-cols = st.columns(min(4, len(selected_chords)))  # adjust number of columns
+# Answer buttons in a form
+with st.form(key="answer_form"):
+    cols = st.columns(min(4, len(selected_chords)))
+    for idx, option in enumerate(sorted(selected_chords)):
+        col = cols[idx % len(cols)]
+        if col.form_submit_button(option):
+            if option == chord_key:
+                st.session_state.result = f"✅ Correct! It was {chord_key}"
+            else:
+                st.session_state.result = f"❌ Incorrect. The correct answer was {chord_key}"
 
-for idx, option in enumerate(st.session_state.shuffled_options):
-    col = cols[idx % len(cols)]
-    if col.button(option):
-        if option == chord_key:
-            st.session_state.result = f"✅ Correct! It was {chord_key}"
-        else:
-            st.session_state.result = f"❌ Incorrect. The correct answer was {chord_key}"
+    # Next chord button inside the form
+    if st.form_submit_button("Next Chord"):
+        st.session_state.current_chord = random.choice(selected_chords)
+        st.session_state.result = None
+        st.experimental_rerun()  # Force rerun to immediately show new chord
 
 # Show result
 if st.session_state.result:
     st.write(st.session_state.result)
 
-# Next chord button
-if st.button("Next Chord"):
-    next_chord()

@@ -334,6 +334,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+# --- RESPONSIVE COLUMNS CSS ---
+st.markdown("""
+<style>
+/* Make columns wrap on desktop and single column on mobile */
+.row-widget.stColumns {
+    display: flex;
+    flex-wrap: wrap;  /* wrap columns to next row if needed */
+    gap: 16px;        /* spacing between columns */
+}
+
+.row-widget.stColumns > div {
+    flex: 1 1 200px;  /* min width 200px per column */
+}
+
+@media (max-width: 600px) {
+    .row-widget.stColumns > div {
+        flex: 1 1 100%; /* single column on mobile */
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
 # --- Group chords by base name ---
 grouped_chords = defaultdict(list)
 for chord_name in CHORDS.keys():
@@ -418,19 +441,10 @@ def handle_option(option):
 
 # --- Display columns of options with feedback ---
 sorted_bases = sorted(selected_base_chords)
-num_cols = len(sorted_bases)  # default: all bases in separate columns
-
-# Detect mobile via user-agent (simple hack)
-import streamlit as stjs  # uses st.experimental_get_query_params
-mobile = stjs.experimental_get_query_params().get("mobile", ["0"])[0] == "1"
-
-if mobile:
-    num_cols = min(3, len(sorted_bases))  # max 3 columns on mobile
-
-cols = st.columns(num_cols)
+cols = st.columns(len(sorted_bases))  # create as many columns as there are bases
 
 for idx, base in enumerate(sorted_bases):
-    col = cols[idx % num_cols]
+    col = cols[idx]
     with col:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]

@@ -320,26 +320,37 @@ CHORDS = {
     # ... (add all diminished chords similarly)
 }
 
-# Group chords by exact base name for columns
+# --- MOBILE-FRIENDLY BUTTONS CSS ---
+st.markdown("""
+<style>
+/* Shrink buttons on mobile */
+@media (max-width: 600px) {
+    div.stButton > button {
+        padding: 4px 8px;
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --- Group chords by exact base name for columns ---
 grouped_chords = defaultdict(list)
 for chord_name in CHORDS.keys():
-    # Determine the base: include chord type (major, minor, diminished, etc.) but exclude extensions
     words = chord_name.split()
     if "major" in words or "minor" in words or "diminished" in words:
-        # Base is just the triad or seventh type
         if "seventh" in chord_name or "flat five" in chord_name or "dominant" in chord_name:
-            base = " ".join(words[:3])  # e.g., "A minor seventh"
+            base = " ".join(words[:3])
         else:
-            base = " ".join(words[:2])  # e.g., "A minor"
+            base = " ".join(words[:2])
     else:
         base = " ".join(words[:2])
     grouped_chords[base].append(chord_name)
 
-# Sidebar: grouped checkboxes
+# --- Sidebar: grouped checkboxes ---
 st.sidebar.title("Select Chords for Quiz")
 selected_base_chords = []
 
-# Define categories for grouping
 categories = {
     "Major": [],
     "Minor": [],
@@ -347,7 +358,6 @@ categories = {
     "Sevenths & Extensions": []
 }
 
-# Assign chord bases to categories
 for base in grouped_chords.keys():
     if "major" in base and "seventh" not in base:
         categories["Major"].append(base)
@@ -358,11 +368,9 @@ for base in grouped_chords.keys():
     else:
         categories["Sevenths & Extensions"].append(base)
 
-# Sort each category alphabetically
 for cat in categories:
     categories[cat].sort()
 
-# Create checkboxes for each category
 for cat, bases in categories.items():
     with st.sidebar.expander(cat, expanded=True):
         for base in bases:
@@ -373,53 +381,52 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
-# Build selected chords dictionary using exact base match
+# --- Build selected chords dictionary ---
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
-# Initialize session state
+# --- Initialize session state ---
 if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
     st.session_state.current_chord = random.choice(all_selected_chords)
-    st.session_state.show_result = False
-    st.session_state.result_text = ""
+    st.session_state.attempts = {}
 
 # Next Chord button
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
     if remaining_chords:
         st.session_state.current_chord = random.choice(remaining_chords)
-    st.session_state.show_result = False
-    st.session_state.result_text = ""
+    st.session_state.attempts[st.session_state.current_chord] = []
 
-# Display current chord notes
+# --- Display current chord notes ---
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# Sort the selected base chords alphabetically for columns
+# --- Sort the selected base chords alphabetically for columns ---
 sorted_bases = sorted(selected_base_chords)
-
-# Create the columns once
 cols = st.columns(len(sorted_bases))
 
-# Populate each column
+# --- Function to get inline button style ---
+def get_button_style(option):
+    attempts = st.session_state.attempts.get(chord_key, [])
+    if option == chord_key:
+        return "background-color: #4CAF50; color: white;"  # green
+    elif option in attempts:
+        return "background-color: #f44336; color: white;"  # red
+    return ""
+
+# --- Populate columns with buttons and inline feedback ---
 for col_idx, base in enumerate(sorted_bases):
     with cols[col_idx]:
         st.write(f"**{base}**")
         options = selected_chords_dict[base]
         
-        # Move the root chord to the top
+        # Move root chord to top
         root_options = [opt for opt in options if "root" in opt.lower()]
         other_options = [opt for opt in options if "root" not in opt.lower()]
         options_sorted = root_options + sorted(other_options)
         
         for option in options_sorted:
+            style = get_button_style(option)
             if st.button(option, key=f"{option}"):
-                if option == chord_key:
-                    st.session_state.result_text = f"✅ Correct! It was {chord_key}"
-                else:
-                    st.session_state.result_text = f"❌ Incorrect. The correct answer was {chord_key}"
-                st.session_state.show_result = True
-
-# Show result
-if st.session_state.show_result:
-    st.write(st.session_state.result_text)
+                # Track attempt
+                st.session_state.attempts.setdefault(chord_key, []).append(option)

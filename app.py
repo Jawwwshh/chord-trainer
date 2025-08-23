@@ -351,7 +351,7 @@ st.markdown("""
 
 @media (max-width: 600px) {
     .row-widget.stColumns > div {
-        flex: 1 1 100%; /* single column on mobile */
+        flex: 1 1 45%; /* single column on mobile */
     }
 }
 </style>

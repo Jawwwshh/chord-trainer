@@ -387,37 +387,36 @@ if "current_chord" not in st.session_state or st.session_state.current_chord not
 if "attempts" not in st.session_state:
     st.session_state.attempts = {}
 
+if "show_result" not in st.session_state:
+    st.session_state.show_result = False
+if "last_attempt" not in st.session_state:
+    st.session_state.last_attempt = None
+
 # --- Next chord ---
 if st.button("Next Chord"):
     remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
     if remaining_chords:
         st.session_state.current_chord = random.choice(remaining_chords)
     st.session_state.attempts[st.session_state.current_chord] = []
+    st.session_state.show_result = False
+    st.session_state.last_attempt = None
 
 chord_key = st.session_state.current_chord
 st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-# --- Helper function to render colored buttons ---
-def colored_button(option):
-    attempts = st.session_state.attempts.get(chord_key, [])
-    # Determine color
-    if option in attempts:
-        color = "#90ee90" if option == chord_key else "#f08080"
-    else:
-        color = "#f0f0f0"
-
-    # Create button
-    clicked = st.button(option, key=option)
+# --- Handle button clicks ---
+def handle_option(option):
+    clicked = st.button(option, key=f"{chord_key}_{option}")
     if clicked:
         if chord_key not in st.session_state.attempts:
             st.session_state.attempts[chord_key] = []
-        st.session_state.attempts[chord_key].append(option)
+        if option not in st.session_state.attempts[chord_key]:
+            st.session_state.attempts[chord_key].append(option)
         st.session_state.show_result = True
         st.session_state.last_attempt = option
+    return clicked
 
-    return color
-
-# --- Display columns of options ---
+# --- Display columns of options with feedback ---
 sorted_bases = sorted(selected_base_chords)
 cols = st.columns(len(sorted_bases))
 
@@ -432,25 +431,20 @@ for col_idx, base in enumerate(sorted_bases):
         options_sorted = root_options + sorted(other_options)
 
         for option in options_sorted:
-          color = colored_button(option)
-          st.markdown(f"""
-              <div style="
-                  background-color:{color};
-                  border:none;
-                  color:black;
-                  padding:10px 20px;
-                  text-align:center;
-                  margin:5px 0;
-                  border-radius:5px;">
-                  {option}
-              </div>
-          """, unsafe_allow_html=True)
+            handle_option(option)
 
-# --- Display feedback ---
+            # Feedback coloring for attempted options
+            attempts = st.session_state.attempts.get(chord_key, [])
+            if option in attempts:
+                if option == chord_key:
+                    st.success(f"{option} ✅")
+                else:
+                    st.error(f"{option} ❌")
+
+# --- Display bottom feedback ---
 attempts = st.session_state.attempts.get(chord_key, [])
-if attempts:
-    last_attempt = attempts[-1]
-    if last_attempt == chord_key:
+if attempts and st.session_state.last_attempt:
+    if st.session_state.last_attempt == chord_key:
         st.success(f"✅ Correct! It was {chord_key}")
     else:
         st.error(f"❌ Incorrect. Try again!")

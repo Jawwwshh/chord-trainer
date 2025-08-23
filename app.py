@@ -2,7 +2,7 @@ import streamlit as st
 import random
 from collections import defaultdict
 
-# Example subset of chords
+# Example chords subset
 CHORDS = {
     "C major root": ["C", "E", "G"],
     "C major 1st inversion": ["E", "G", "C"],
@@ -49,32 +49,14 @@ if "current_chord" not in st.session_state:
     st.session_state.show_result = False
     st.session_state.result_text = ""
 
-# Handle Next Chord
-if st.button("Next Chord"):
+# --- NEW FIX: if current_chord is no longer in selected chords, pick a new one ---
+if st.session_state.current_chord not in all_selected_chords:
     st.session_state.current_chord = random.choice(all_selected_chords)
     st.session_state.show_result = False
     st.session_state.result_text = ""
 
-# Display current chord notes
-chord_key = st.session_state.current_chord
-st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
-
-# Display answer buttons in vertical columns per base chord
-cols = st.columns(len(selected_base_chords))
-
-for col_idx, base in enumerate(selected_base_chords):
-    with cols[col_idx]:
-        st.write(f"**{base}**")
-        for option in selected_chords_dict[base]:
-            # Unique key for Streamlit
-            if st.button(option, key=f"{option}"):
-                if option == chord_key:
-                    st.session_state.result_text = f"✅ Correct! It was {chord_key}"
-                else:
-                    st.session_state.result_text = f"❌ Incorrect. The correct answer was {chord_key}"
-                st.session_state.show_result = True
-
-# Show result
-if st.session_state.show_result:
-    st.write(st.session_state.result_text)
+# Handle Next Chord
+if st.button("Next Chord"):
+    st.session_state.current_chord = random.choice(all_selected_chords)
+    st.session_state.show_result = False
 

@@ -32,12 +32,11 @@ def note_to_midi(note_name, octave):
     return NOTE_TO_SEMI[note_name] + 12 * octave
 
 def chord_to_midi(chord_notes, inversion="root", base_octave=4):
-    # Reorder notes for inversion
     order = INVERSIONS[inversion]
     notes_ordered = [chord_notes[i] for i in order]
-    # Convert to MIDI
     midi_notes = [note_to_midi(n, base_octave) for n in notes_ordered]
-    # Center the chord inside C3-C5
+
+    # center the chord inside C3-C5
     min_note = min(midi_notes)
     max_note = max(midi_notes)
     if min_note < KEYBOARD_START:
@@ -47,13 +46,13 @@ def chord_to_midi(chord_notes, inversion="root", base_octave=4):
     return midi_notes
 
 # -------------------
-# Draw keyboard
+# Draw keyboard on a given axis
 # -------------------
-def draw_keyboard(chord_midis):
+def draw_keyboard_in_ax(chord_midis, ax):
     WHITE_SEMITONES = {0,2,4,5,7,9,11}
     BLACK_AFTER_WHITE = {0,2,5,7,9}  # positions with black keys after
 
-    # Map white keys to positions
+    # white keys positions
     white_order = []
     white_x_map = {}
     x = 0
@@ -63,18 +62,17 @@ def draw_keyboard(chord_midis):
             white_x_map[m] = x
             x += 1
 
-    fig, ax = plt.subplots(figsize=(10,3))
     white_w, white_h = 1.0, 4.0
     black_w, black_h = 0.6, 2.6
     chord_set = set(chord_midis)
 
-    # Draw white keys
+    # draw white keys
     for m in white_order:
         wx = white_x_map[m]
         face = "yellow" if m in chord_set else "white"
         ax.add_patch(plt.Rectangle((wx,0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
 
-    # Draw black keys (never highlight)
+    # draw black keys (never highlighted)
     for m in white_order:
         if m % 12 in BLACK_AFTER_WHITE:
             b = m + 1
@@ -86,16 +84,16 @@ def draw_keyboard(chord_midis):
     ax.set_xlim(0, len(white_order))
     ax.set_ylim(0, white_h)
     ax.axis("off")
-    st.pyplot(fig)
 
 # -------------------
-# Generate question and options
+# Generate question
 # -------------------
 def generate_question(selected_chords):
     correct_name = random.choice(selected_chords)
     inversion = random.choice(list(INVERSIONS.keys()))
     correct_midi = chord_to_midi(CHORDS[correct_name], inversion)
 
+    # generate 3 wrong options
     options = [(correct_name, inversion, correct_midi)]
     while len(options) < 4:
         wrong_name = random.choice(selected_chords)
@@ -103,12 +101,11 @@ def generate_question(selected_chords):
             wrong_inversion = random.choice(list(INVERSIONS.keys()))
             wrong_midi = chord_to_midi(CHORDS[wrong_name], wrong_inversion)
             options.append((wrong_name, wrong_inversion, wrong_midi))
-
     random.shuffle(options)
     return options, (correct_name, inversion, correct_midi)
 
 # -------------------
-# Streamlit app
+# Streamlit UI
 # -------------------
 st.title("🎹 Chord Trainer")
 
@@ -117,46 +114,53 @@ mode = st.radio("Mode", ["Name → Picture", "Picture → Name"])
 
 if not selected_chords:
     st.warning("Please select at least one chord to practice.")
-else:
-    if "question" not in st.session_state:
-        st.session_state.question = None
-        st.session_state.options = []
-        st.session_state.feedback = ""
 
-    if st.button("Next Question") or st.session_state.question is None:
+if "question" not in st.session_state:
+    st.session_state.question = None
+    st.session_state.options = []
+    st.session_state.feedback = ""
+
+if st.button("Next Question") or st.session_state.question is None:
+    if selected_chords:
         options, correct = generate_question(selected_chords)
         st.session_state.options = options
         st.session_state.question = correct
         st.session_state.feedback = ""
 
-    q = st.session_state.question
+q = st.session_state.question
 
-    if q is not None:
-        if mode == "Name → Picture":
-            st.write(f"Which diagram shows **{q[0]} ({q[1]})**?")
-            draw_keyboard(q[2])
+if q is not None:
+    if mode == "Name → Picture":
+        st.write(f"Which diagram shows **{q[0]} ({q[1]})**?")
+        fig, ax = plt.subplots(figsize=(10,3))
+        draw_keyboard_in_ax(q[2], ax)
+        st.pyplot(fig)
 
-        elif mode == "Picture → Name":
-            st.write("Which diagram matches the chord shown?")
-            cols = st.columns(4)
-            for i, (_, _, midi) in enumerate(st.session_state.options):
-                with cols[i]:
-                    draw_keyboard(midi)
+    elif mode == "Picture → Name":
+        st.write("Which diagram matches the chord shown?")
+        cols = st.columns(4)
+        choice_labels = []
 
-            # Radio selection
-            choice_labels = [f"Option {i+1}" for i in range(4)]
-            selection = st.radio("Select the correct option:", choice_labels, key="answer_radio")
+        # Draw four options
+        for i, (_, _, midi) in enumerate(st.session_state.options):
+            with cols[i]:
+                fig, ax = plt.subplots(figsize=(2.5,3))
+                draw_keyboard_in_ax(midi, ax)
+                st.pyplot(fig)
+                choice_labels.append(f"Option {i+1}")
 
-            if st.button("Submit Answer"):
-                selected_index = choice_labels.index(selection)
-                selected_option = st.session_state.options[selected_index]
-                correct_option = st.session_state.question
-                if selected_option == correct_option:
-                    st.session_state.feedback = "✅ Correct!"
-                else:
-                    st.session_state.feedback = f"❌ Wrong! Correct: {correct_option[0]} ({correct_option[1]})"
-                st.session_state.question = None
+        selection = st.radio("Select the correct option:", choice_labels, key="answer_radio")
 
-    if st.session_state.feedback:
-        st.write(st.session_state.feedback)
+        if st.button("Submit Answer"):
+            selected_index = choice_labels.index(selection)
+            selected_option = st.session_state.options[selected_index]
+            correct_option = st.session_state.question
+            if selected_option == correct_option:
+                st.session_state.feedback = "✅ Correct!"
+            else:
+                st.session_state.feedback = f"❌ Wrong! Correct: {correct_option[0]} ({correct_option[1]})"
+            st.session_state.question = None
+
+if st.session_state.feedback:
+    st.write(st.session_state.feedback)
 

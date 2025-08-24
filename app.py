@@ -459,6 +459,7 @@ elif mode == "Playing the Position":
     def generate_keyboard_image(highlight_notes, keys_visible=25):
         key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 
+        # Generate visible keys
         keyboard_notes = []
         octave = 0
         while len(keyboard_notes) < keys_visible:
@@ -475,25 +476,47 @@ elif mode == "Playing the Position":
         white_keys = [note for note in keyboard_notes if "#" not in note]
         white_key_width = img_width / len(white_keys)
 
+        # --- Identify central contiguous highlight sequence ---
+        # Find indices of all keys that are in highlight_notes
+        highlight_indices = [i for i, n in enumerate(keyboard_notes) if n[:-1] in highlight_notes]
+
+        # Find longest contiguous sequence
+        longest_seq = []
+        current_seq = []
+        for idx in highlight_indices:
+            if current_seq and idx == current_seq[-1] + 1:
+                current_seq.append(idx)
+            else:
+                if len(current_seq) > len(longest_seq):
+                    longest_seq = current_seq
+                current_seq = [idx]
+        if len(current_seq) > len(longest_seq):
+            longest_seq = current_seq
+
+        # Only highlight notes in the longest contiguous sequence
+        highlight_set = {keyboard_notes[i][:-1] for i in longest_seq}
+
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
 
+        # Draw white keys
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
             if "#" not in note:
-                color = "yellow" if note[:-1] in highlight_notes else "white"
+                color = "yellow" if note[:-1] in highlight_set else "white"
                 draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=color, outline="black")
                 white_key_positions[note] = x
                 x += white_key_width
 
+        # Draw black keys
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
                 left_note_idx = idx - 1
                 if keyboard_notes[left_note_idx] in white_key_positions:
                     x0 = white_key_positions[keyboard_notes[left_note_idx]] + white_key_width * 0.65
                     x1 = x0 + white_key_width * 0.7
-                    color = "yellow" if note[:-1] in highlight_notes else "black"
+                    color = "yellow" if note[:-1] in highlight_set else "black"
                     draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
 
         return img
@@ -507,6 +530,7 @@ elif mode == "Playing the Position":
     # --- Next chord button ---
     if st.button("Next Chord"):
         st.session_state.play_current_chord = random.choice(all_selected_chords)
+        # Clear previous feedback and selection automatically
         st.session_state.play_feedback = ""
         st.session_state.play_clicked_option = None
 

@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 import random
 
 # -------------------
-# Chord definitions
+# Note & chord definitions
 # -------------------
+SEMI_TO_NOTE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+NOTE_TO_SEMI = {n: i for i, n in enumerate(SEMI_TO_NOTE)}
+
 CHORD_STRUCTURES = {
     "major": [0, 4, 7],
     "minor": [0, 3, 7]
@@ -23,57 +26,48 @@ KEYS = {
     "E minor": ["E", "F#", "G", "A", "B", "C", "D"]
 }
 
-SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
-NOTE_TO_SEMI = {n: i for i, n in enumerate(SEMI_TO_NOTE)}
-
 # -------------------
-# Note utilities
+# MIDI conversion
 # -------------------
-def note_name_to_midi(note):
-    """Convert note name (e.g., C4) to MIDI number."""
-    name, octave = note[:-1], int(note[-1])
-    return NOTE_TO_SEMI[name] + 12 * octave
+def note_name_to_midi(note_name, octave=4):
+    """Convert note name (with optional sharp) + octave to MIDI number"""
+    semitone = NOTE_TO_SEMI.index(note_name)
+    return 12 * octave + semitone
 
 def midi_to_note_name(midi):
     octave = midi // 12
     name = SEMI_TO_NOTE[midi % 12]
     return f"{name}{octave}"
 
-def build_chord_midi(root_note, quality, inversion="root"):
-    """Return a list of MIDI numbers for a chord, centered around C4."""
-    root_midi = note_name_to_midi(root_note + "4")  # start near middle C
+# -------------------
+# Build chord in MIDI numbers
+# -------------------
+def build_chord_midi(root_note, quality="major", inversion="root", base_octave=4):
+    """Return list of MIDI numbers for a triad with given inversion"""
+    root_midi = note_name_to_midi(root_note, base_octave)
     intervals = CHORD_STRUCTURES[quality]
     notes = [root_midi + i for i in intervals]
-    
-    # Apply inversion
+    # apply inversion
     order = INVERSIONS[inversion]
     notes = [notes[i] for i in order]
-    for j in range(order[0]):
-        notes[j] += 12  # push lowest notes up an octave
-
-    # Center chord in C3–C5
-    lowest = min(notes)
-    highest = max(notes)
-    mid = (lowest + highest) // 2
-    shift = note_name_to_midi("C4") - mid
-    notes = [n + shift for n in notes]
-
-    # Clip to C3–C5
-    notes = [n for n in notes if note_name_to_midi("C3") <= n <= note_name_to_midi("C5")]
+    # make sure lowest note is in C3–C5 range
+    while min(notes) > note_name_to_midi("C5"):
+        notes = [n - 12 for n in notes]
+    while max(notes) < note_name_to_midi("C3"):
+        notes = [n + 12 for n in notes]
     return notes
 
 # -------------------
-# Draw piano
+# Draw keyboard
 # -------------------
-def draw_keyboard(chord_midis):
-    """Draw a 25-key piano keyboard (C3–C5) highlighting chord_midis."""
-    start = note_name_to_midi("C3")
-    end = note_name_to_midi("C5")
-    
-    WHITE_SEMITONES = {0, 2, 4, 5, 7, 9, 11}
-    BLACK_AFTER_WHITE = {0, 2, 5, 7, 9}  # C, D, F, G, A
+def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
+    start = note_name_to_midi(start_note, 3)
+    end = note_name_to_midi(end_note, 5)
 
-    # Map white keys to positions
+    WHITE_SEMITONES = {0, 2, 4, 5, 7, 9, 11}
+    BLACK_AFTER_WHITE = {0, 2, 5, 7, 9}
+
+    # Map white keys to x positions
     white_midi_to_x = {}
     white_order = []
     x = 0
@@ -98,12 +92,13 @@ def draw_keyboard(chord_midis):
     # Draw black keys
     for m in white_order:
         if m % 12 in BLACK_AFTER_WHITE:
-            b = m + 1  # the sharp after this white
+            b = m + 1
             if start <= b <= end:
                 wx = white_midi_to_x[m]
                 bx = wx + 1 - black_w / 2
                 face = "red" if b in chord_set else "black"
-                ax.add_patch(plt.Rectangle((bx, white_h - black_h), black_w, black_h, facecolor=face, edgecolor="black", zorder=2))
+                ax.add_patch(plt.Rectangle((bx, white_h - black_h), black_w, black_h,
+                                           facecolor=face, edgecolor="black", zorder=2))
 
     ax.set_xlim(0, len(white_order))
     ax.set_ylim(0, white_h)
@@ -115,69 +110,58 @@ def draw_keyboard(chord_midis):
 # -------------------
 st.title("🎹 Chord Trainer")
 
-selected_chords = st.multiselect(
-    "Select chords to practice", list(KEYS.keys()), default=list(KEYS.keys())
-)
-
+selected_chords = st.multiselect("Select chords to practice", list(KEYS.keys()), default=["C major","A minor","G major","E minor"])
 mode = st.radio("Mode", ["Name → Picture", "Picture → Name"])
 
-if "quiz" not in st.session_state:
-    st.session_state.quiz = None
+if "question" not in st.session_state:
+    st.session_state.question = None
     st.session_state.feedback = ""
 
+def generate_question():
+    chord_name = random.choice(selected_chords)
+    root_options = KEYS[chord_name]
+    root_note = random.choice(root_options)
+    quality = "major" if "major" in chord_name else "minor"
+    inversion = random.choice(list(INVERSIONS.keys()))
+    midi_notes = build_chord_midi(root_note, quality, inversion)
+    return (chord_name, root_note, quality, inversion, midi_notes)
+
 # Generate new question
-if st.button("New Question") or st.session_state.quiz is None:
+if st.button("New Question") or st.session_state.question is None:
     if selected_chords:
-        chord_name = random.choice(selected_chords)
-        scale = KEYS[chord_name]
-        root_note = random.choice(scale)
-        quality = "major" if "major" in chord_name else "minor"
-        inversion = random.choice(list(INVERSIONS.keys()))
-        chord_midis = build_chord_midi(root_note, quality, inversion)
-
-        # Build 3 wrong options
-        options = []
-        while len(options) < 3:
-            wrong_chord = random.choice(selected_chords)
-            wrong_scale = KEYS[wrong_chord]
-            wrong_root = random.choice(wrong_scale)
-            wrong_quality = "major" if "major" in wrong_chord else "minor"
-            wrong_inversion = random.choice(list(INVERSIONS.keys()))
-            wrong_midis = build_chord_midi(wrong_root, wrong_quality, wrong_inversion)
-            if wrong_midis != chord_midis:
-                options.append(wrong_midis)
-
-        all_options = options + [chord_midis]
-        random.shuffle(all_options)
-        st.session_state.quiz = {
-            "correct": chord_midis,
-            "all_options": all_options,
-            "chord_name": chord_name,
-            "root": root_note,
-            "quality": quality,
-            "inversion": inversion
-        }
+        st.session_state.question = generate_question()
         st.session_state.feedback = ""
 
-# Display question
-if st.session_state.quiz:
-    q = st.session_state.quiz
+if st.session_state.question:
+    chord_name, root_note, quality, inversion, chord_midis = st.session_state.question
     if mode == "Name → Picture":
-        st.write(f"Which picture shows **{q['chord_name']} ({q['inversion']})**?")
-        for i, option in enumerate(q["all_options"]):
-            st.write(f"Option {i+1}")
-            draw_keyboard(option)
-    else:  # Picture → Name
-        st.write("Which chord is this?")
-        for i, option in enumerate(q["all_options"]):
-            draw_keyboard(option)
-            if st.button(f"Option {i+1}", key=f"opt{i}"):
-                if option == q["correct"]:
-                    st.session_state.feedback = f"✅ Correct! It was {q['chord_name']} ({q['inversion']})"
-                else:
-                    st.session_state.feedback = f"❌ Wrong! It was {q['chord_name']} ({q['inversion']})"
-                st.session_state.quiz = None
+        st.write(f"Which diagram shows the chord?")
+        draw_keyboard(chord_midis)
+    elif mode == "Picture → Name":
+        st.write(f"Identify the chord:")
 
-# Feedback
+        # Correct answer
+        correct = (chord_name, root_note, quality, inversion, chord_midis)
+
+        # Generate 3 wrong options
+        options = [correct]
+        while len(options) < 4:
+            wrong = generate_question()
+            if wrong not in options:
+                options.append(wrong)
+        random.shuffle(options)
+
+        cols = st.columns(2)
+        for i, opt in enumerate(options):
+            _, _, _, _, midi_notes = opt
+            with cols[i % 2]:
+                draw_keyboard(midi_notes)
+                if st.button(f"Select Option {i+1}", key=f"opt{i}"):
+                    if opt == correct:
+                        st.session_state.feedback = "✅ Correct!"
+                    else:
+                        st.session_state.feedback = f"❌ Wrong! Correct answer: {correct[0]}"
+
 if st.session_state.feedback:
     st.write(st.session_state.feedback)
+

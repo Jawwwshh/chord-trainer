@@ -380,11 +380,11 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
-if mode == "identify the position":
-    # --- Build selected chords dict ---
+ # --- Build selected chords dict ---
     selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
     all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
+if mode == "identify the position":
     # --- Initialize session state ---
     if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
         st.session_state.current_chord = random.choice(all_selected_chords)

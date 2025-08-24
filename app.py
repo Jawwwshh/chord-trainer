@@ -19,17 +19,27 @@ INVERSIONS = {
 }
 
 # -------------------
-# Draw piano
+# Note helpers
+# -------------------
+SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+NOTE_TO_SEMI = {n: i for i, n in enumerate(SEMI_TO_NOTE)}
+
+def note_name_to_midi(note):
+    """Convert note name (e.g., C3) to MIDI number"""
+    name, octave = note[:-1], int(note[-1])
+    return NOTE_TO_SEMI[name] + 12 * octave
+
+# -------------------
+# Draw piano keyboard
 # -------------------
 def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
-    # chord_midis should be MIDI ints (you already convert with note_name_to_midi)
     start = note_name_to_midi(start_note)
     end = note_name_to_midi(end_note)
 
     WHITE_SEMITONES = {0, 2, 4, 5, 7, 9, 11}   # C D E F G A B
     BLACK_AFTER_WHITE = {0, 2, 5, 7, 9}        # C, D, F, G, A (their sharps)
 
-    # Map each WHITE key in range to an x position (one unit per white key)
+    # Map each white key to x position
     white_midi_to_x = {}
     white_order = []
     x = 0
@@ -46,19 +56,18 @@ def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
     fig, ax = plt.subplots(figsize=(10, 3))
     chord_set = set(chord_midis)
 
-    # Draw white keys (base layer)
+    # Draw white keys
     for m in white_order:
         wx = white_midi_to_x[m]
         face = "yellow" if m in chord_set else "white"
         ax.add_patch(plt.Rectangle((wx, 0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
 
-    # Draw black keys (overlay, positioned between adjacent whites)
+    # Draw black keys
     for m in white_order:
         if (m % 12) in BLACK_AFTER_WHITE:
-            b = m + 1  # the sharp right after this white
+            b = m + 1  # sharp immediately after white
             if start <= b <= end:
                 wx = white_midi_to_x[m]
-                # center the black key between this white and the next white
                 bx = wx + 1 - black_w / 2
                 face = "red" if b in chord_set else "black"
                 ax.add_patch(plt.Rectangle((bx, white_h - black_h), black_w, black_h,
@@ -70,62 +79,58 @@ def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
     st.pyplot(fig)
 
 # -------------------
-# Generate chord notes
+# Generate chord notes (MIDI numbers)
 # -------------------
-def get_chord_notes(root, intervals, inversion):
-    notes = [(root + i) % 12 for i in intervals]  # triad
-    # reorder for inversion
+def get_chord_notes(root_midi, intervals, inversion):
+    notes = [(root_midi + i) for i in intervals]
     order = INVERSIONS[inversion]
     notes = [notes[i] for i in order]
 
-    # expand onto 25-key keyboard (C to C, 2 octaves)
-    all_notes = []
-    for n in notes:
-        for octave in [0, 12]:
-            if 0 <= n + octave < 25:
-                all_notes.append(n + octave)
-    return sorted(all_notes)
+    # Ensure notes fit inside C3–C5
+    for i in range(len(notes)):
+        while notes[i] < note_name_to_midi("C3"):
+            notes[i] += 12
+        while notes[i] > note_name_to_midi("C5"):
+            notes[i] -= 12
+    return sorted(notes)
 
 # -------------------
 # Streamlit app
 # -------------------
-st.title("Chord Trainer")
+st.title("🎹 Chord Trainer")
 
-# chord selection
 selected_chords = st.multiselect("Select chords to practice", list(CHORDS.keys()), default=list(CHORDS.keys()))
-
 mode = st.radio("Mode", ["Name → Picture", "Picture → Name"])
 
 if "question" not in st.session_state:
     st.session_state.question = None
 
-if mode == "Name → Picture":
-    if st.button("New Question") or st.session_state.question is None:
-        chord = random.choice(selected_chords)
-        inversion = random.choice(list(INVERSIONS.keys()))
-        st.session_state.question = (chord, inversion)
+# New question button
+if st.button("New Question") or st.session_state.question is None:
+    chord = random.choice(selected_chords)
+    inversion = random.choice(list(INVERSIONS.keys()))
+    st.session_state.question = (chord, inversion)
 
-    chord, inversion = st.session_state.question
-    st.write(f"Which diagram shows **{chord} ({inversion})**?")
+chord, inversion = st.session_state.question
+st.write(f"Which diagram shows **{chord} ({inversion})**?")
 
-    # correct answer
-    root = list(CHORDS.keys()).index(chord) * 2  # quick hack mapping
-    notes = get_chord_notes(root, CHORDS[chord], inversion)
-    correct_img = notes
+# correct answer
+root_midi = note_name_to_midi(chord[0] + "4")  # simple root note in octave 4
+correct_notes = get_chord_notes(root_midi, CHORDS[chord], inversion)
 
-    # wrong answers
-    options = []
-    for _ in range(3):
-        other_chord = random.choice(selected_chords)
-        other_inversion = random.choice(list(INVERSIONS.keys()))
-        notes_wrong = get_chord_notes(list(CHORDS.keys()).index(other_chord)*2, CHORDS[other_chord], other_inversion)
-        options.append((other_chord, other_inversion, notes_wrong))
+# wrong answers
+options = []
+for _ in range(3):
+    other_chord = random.choice(selected_chords)
+    other_inversion = random.choice(list(INVERSIONS.keys()))
+    other_root = note_name_to_midi(other_chord[0] + "4")
+    wrong_notes = get_chord_notes(other_root, CHORDS[other_chord], other_inversion)
+    options.append((other_chord, other_inversion, wrong_notes))
 
-    # shuffle all
-    answers = [(chord, inversion, correct_img)] + options
-    random.shuffle(answers)
+# shuffle
+answers = [(chord, inversion, correct_notes)] + options
+random.shuffle(answers)
 
-    for i, (c, inv, notes) in enumerate(answers):
-        st.write(f"Option {i+1}: {c} {inv}")
-        draw_keyboard(notes)
-
+for i, (c, inv, notes) in enumerate(answers):
+    st.write(f"Option {i+1}: {c} ({inv})")
+    draw_keyboard(notes)

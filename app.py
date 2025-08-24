@@ -73,40 +73,43 @@ def build_chord(root, quality, inversion="root", octave=4):
     return [midi_to_note_name(n) for n in notes]
 
 def draw_keyboard(highlight_notes):
-    fig, ax = plt.subplots(figsize=(10,2))
+    fig, ax = plt.subplots(figsize=(10, 2))
     white_key_width = 1
-    black_key_width = 0.6
     white_key_height = 4
+    black_key_width = 0.6
     black_key_height = 2.5
 
-    # Build map for fast highlight
     highlight_set = set(highlight_notes)
 
-    # Draw white keys
+    # Track where each white key lands (for black placement)
     white_positions = []
-    key_index = 0
-    for midi in range(note_name_to_midi("C3"), note_name_to_midi("C5")+1):
+    x_pos = 0
+    for midi in range(note_name_to_midi("C3"), note_name_to_midi("C5") + 1):
         note = midi_to_note_name(midi)
         if note[:-1] in WHITE_KEYS:
-            x = len(white_positions)
-            white_positions.append((note,x))
+            # White key
             color = "yellow" if note in highlight_set else "white"
-            ax.add_patch(plt.Rectangle((x,0), white_key_width, white_key_height, fill=True, edgecolor="black", facecolor=color))
+            ax.add_patch(plt.Rectangle((x_pos, 0), white_key_width, white_key_height,
+                                       facecolor=color, edgecolor="black", zorder=1))
+            white_positions.append((note, x_pos))
+            x_pos += 1
 
-    # Draw black keys
-    black_offsets = {"C":0.7,"D":1.7,"F":3.7,"G":4.7,"A":5.7}
-    for note, x in white_positions:
+    # Draw black keys relative to their white neighbors
+    black_neighbors = {"C": 0, "D": 1, "F": 3, "G": 4, "A": 5}  # position in scale
+    for i, (note, x) in enumerate(white_positions):
         base = note[:-1]
         octave = int(note[-1])
-        if base in black_offsets:
-            black_note = base+"#"+str(octave)
-            if black_note in NOTES:  # inside range
-                bx = x+black_offsets[base]
-                color = "orange" if black_note in highlight_set else "black"
-                ax.add_patch(plt.Rectangle((bx,0), black_key_width, black_key_height, fill=True, edgecolor="black", facecolor=color,zorder=2))
+        if base in black_neighbors:
+            black_note = base + "#" + str(octave)
+            if black_note in NOTES:  # inside keyboard range
+                bx = x + 0.75  # centered between two white keys
+                color = "red" if black_note in highlight_set else "black"
+                ax.add_patch(plt.Rectangle((bx - black_key_width/2, white_key_height - black_key_height),
+                                           black_key_width, black_key_height,
+                                           facecolor=color, edgecolor="black", zorder=2))
 
-    ax.set_xlim(0,len(white_positions))
-    ax.set_ylim(0,white_key_height)
+    ax.set_xlim(0, x_pos)
+    ax.set_ylim(0, white_key_height)
     ax.axis("off")
     return fig
 

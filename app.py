@@ -18,41 +18,30 @@ INVERSIONS = {
     "2nd": [2, 0, 1]
 }
 
-SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
-NOTE_TO_SEMI = {n:i for i,n in enumerate(SEMI_TO_NOTE)}
+NOTE_TO_SEMI = {n:i for i,n in enumerate(["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"])}
 
-# Keyboard range
 KEYBOARD_START = 48  # C3
 KEYBOARD_END = 72    # C5
 
 # -------------------
 # Helpers
 # -------------------
-def note_to_midi(note_name, octave):
-    return NOTE_TO_SEMI[note_name] + 12 * octave
+def note_to_midi(note, octave):
+    return NOTE_TO_SEMI[note] + 12*octave
 
 def chord_to_midi(chord_notes, inversion="root", base_octave=4):
     order = INVERSIONS[inversion]
     notes_ordered = [chord_notes[i] for i in order]
     midi_notes = [note_to_midi(n, base_octave) for n in notes_ordered]
-
-    # center the chord inside C3-C5
-    min_note = min(midi_notes)
-    max_note = max(midi_notes)
-    if min_note < KEYBOARD_START:
-        midi_notes = [n+12 for n in midi_notes]
-    if max_note > KEYBOARD_END:
-        midi_notes = [n-12 for n in midi_notes]
+    min_note, max_note = min(midi_notes), max(midi_notes)
+    if min_note < KEYBOARD_START: midi_notes = [n+12 for n in midi_notes]
+    if max_note > KEYBOARD_END: midi_notes = [n-12 for n in midi_notes]
     return midi_notes
 
-# -------------------
-# Draw keyboard on a given axis
-# -------------------
 def draw_keyboard_in_ax(chord_midis, ax):
     WHITE_SEMITONES = {0,2,4,5,7,9,11}
-    BLACK_AFTER_WHITE = {0,2,5,7,9}  # positions with black keys after
+    BLACK_AFTER_WHITE = {0,2,5,7,9}
 
-    # white keys positions
     white_order = []
     white_x_map = {}
     x = 0
@@ -66,13 +55,11 @@ def draw_keyboard_in_ax(chord_midis, ax):
     black_w, black_h = 0.6, 2.6
     chord_set = set(chord_midis)
 
-    # draw white keys
     for m in white_order:
         wx = white_x_map[m]
         face = "yellow" if m in chord_set else "white"
         ax.add_patch(plt.Rectangle((wx,0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
 
-    # draw black keys (never highlighted)
     for m in white_order:
         if m % 12 in BLACK_AFTER_WHITE:
             b = m + 1
@@ -92,8 +79,6 @@ def generate_question(selected_chords):
     correct_name = random.choice(selected_chords)
     inversion = random.choice(list(INVERSIONS.keys()))
     correct_midi = chord_to_midi(CHORDS[correct_name], inversion)
-
-    # generate 3 wrong options
     options = [(correct_name, inversion, correct_midi)]
     while len(options) < 4:
         wrong_name = random.choice(selected_chords)
@@ -108,7 +93,6 @@ def generate_question(selected_chords):
 # Streamlit UI
 # -------------------
 st.title("🎹 Chord Trainer")
-
 selected_chords = st.multiselect("Select chords to practice", list(CHORDS.keys()), default=list(CHORDS.keys()))
 mode = st.radio("Mode", ["Name → Picture", "Picture → Name"])
 
@@ -139,27 +123,18 @@ if q is not None:
     elif mode == "Picture → Name":
         st.write("Which diagram matches the chord shown?")
         cols = st.columns(4)
-        choice_labels = []
 
-        # Draw four options
-        for i, (_, _, midi) in enumerate(st.session_state.options):
+        for i, (name, inversion, midi) in enumerate(st.session_state.options):
             with cols[i]:
                 fig, ax = plt.subplots(figsize=(2.5,3))
                 draw_keyboard_in_ax(midi, ax)
                 st.pyplot(fig)
-                choice_labels.append(f"Option {i+1}")
-
-        selection = st.radio("Select the correct option:", choice_labels, key="answer_radio")
-
-        if st.button("Submit Answer"):
-            selected_index = choice_labels.index(selection)
-            selected_option = st.session_state.options[selected_index]
-            correct_option = st.session_state.question
-            if selected_option == correct_option:
-                st.session_state.feedback = "✅ Correct!"
-            else:
-                st.session_state.feedback = f"❌ Wrong! Correct: {correct_option[0]} ({correct_option[1]})"
-            st.session_state.question = None
+                if st.button(f"Select", key=f"btn_{i}"):
+                    if (name, inversion, midi) == q:
+                        st.session_state.feedback = "✅ Correct!"
+                    else:
+                        st.session_state.feedback = f"❌ Wrong! Correct: {q[0]} ({q[1]})"
+                    st.session_state.question = None
 
 if st.session_state.feedback:
     st.write(st.session_state.feedback)

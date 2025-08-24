@@ -381,84 +381,81 @@ if not selected_base_chords:
     st.stop()
 
 if mode == "identify the position":
+    # --- Build selected chords dict ---
+    selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
+    all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
-# --- Build selected chords dict ---
-selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
-all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
+    # --- Initialize session state ---
+    if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
+        st.session_state.current_chord = random.choice(all_selected_chords)
 
-# --- Initialize session state ---
-if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
-    st.session_state.current_chord = random.choice(all_selected_chords)
+    if "attempts" not in st.session_state:
+        st.session_state.attempts = {}
 
-if "attempts" not in st.session_state:
-    st.session_state.attempts = {}
+    if "show_result" not in st.session_state:
+        st.session_state.show_result = False
+    if "last_attempt" not in st.session_state:
+        st.session_state.last_attempt = None
 
-if "show_result" not in st.session_state:
-    st.session_state.show_result = False
-if "last_attempt" not in st.session_state:
-    st.session_state.last_attempt = None
+    # --- Next chord ---
+    if st.button("Next Chord"):
+        remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
+        if remaining_chords:
+            st.session_state.current_chord = random.choice(remaining_chords)
+        st.session_state.attempts[st.session_state.current_chord] = []
+        st.session_state.show_result = False
+        st.session_state.last_attempt = None
 
-# --- Next chord ---
-if st.button("Next Chord"):
-    remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
-    if remaining_chords:
-        st.session_state.current_chord = random.choice(remaining_chords)
-    st.session_state.attempts[st.session_state.current_chord] = []
-    st.session_state.show_result = False
-    st.session_state.last_attempt = None
+    chord_key = st.session_state.current_chord
+    st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
 
-chord_key = st.session_state.current_chord
-st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
+    # --- Handle button clicks ---
+    def handle_option(option):
+        clicked = st.button(option, key=f"{chord_key}_{option}")
+        if clicked:
+            if chord_key not in st.session_state.attempts:
+                st.session_state.attempts[chord_key] = []
+            if option not in st.session_state.attempts[chord_key]:
+                st.session_state.attempts[chord_key].append(option)
+            st.session_state.show_result = True
+            st.session_state.last_attempt = option
+        return clicked
 
-# --- Handle button clicks ---
-def handle_option(option):
-    clicked = st.button(option, key=f"{chord_key}_{option}")
-    if clicked:
-        if chord_key not in st.session_state.attempts:
-            st.session_state.attempts[chord_key] = []
-        if option not in st.session_state.attempts[chord_key]:
-            st.session_state.attempts[chord_key].append(option)
-        st.session_state.show_result = True
-        st.session_state.last_attempt = option
-    return clicked
+    # --- Display columns of options with feedback ---
+    sorted_bases = sorted(selected_base_chords)
+    cols = st.columns(len(sorted_bases))
 
-# --- Display columns of options with feedback ---
-sorted_bases = sorted(selected_base_chords)
-cols = st.columns(len(sorted_bases))
+    for col_idx, base in enumerate(sorted_bases):
+        with cols[col_idx]:
+            st.write(f"**{base}**")
+            options = selected_chords_dict[base]
 
-for col_idx, base in enumerate(sorted_bases):
-    with cols[col_idx]:
-        st.write(f"**{base}**")
-        options = selected_chords_dict[base]
+            # Root chord first
+            root_options = [opt for opt in options if "root" in opt.lower()]
+            other_options = [opt for opt in options if "root" not in opt.lower()]
+            options_sorted = root_options + sorted(other_options)
 
-        # Root chord first
-        root_options = [opt for opt in options if "root" in opt.lower()]
-        other_options = [opt for opt in options if "root" not in opt.lower()]
-        options_sorted = root_options + sorted(other_options)
+            for option in options_sorted:
+                handle_option(option)
 
-        for option in options_sorted:
-            handle_option(option)
+                # Feedback coloring for attempted options
+                attempts = st.session_state.attempts.get(chord_key, [])
+                if option in attempts:
+                    if option == chord_key:
+                        st.success(f"{option} ✅")
+                    else:
+                        st.error(f"{option} ❌")
 
-            # Feedback coloring for attempted options
-            attempts = st.session_state.attempts.get(chord_key, [])
-            if option in attempts:
-                if option == chord_key:
-                    st.success(f"{option} ✅")
-                else:
-                    st.error(f"{option} ❌")
-
-# --- Display bottom feedback ---
-attempts = st.session_state.attempts.get(chord_key, [])
-if attempts and st.session_state.last_attempt:
-    if st.session_state.last_attempt == chord_key:
-        st.success(f"✅ Correct! It was {chord_key}")
-    else:
-        st.error(f"❌ Incorrect. Try again!")
+    # --- Display bottom feedback ---
+    attempts = st.session_state.attempts.get(chord_key, [])
+    if attempts and st.session_state.last_attempt:
+        if st.session_state.last_attempt == chord_key:
+            st.success(f"✅ Correct! It was {chord_key}")
+        else:
+            st.error(f"❌ Incorrect. Try again!")
 
 elif mode == "Playing the Position":
-
-# --- PLAYING THE POSITION MODE ---
-if mode == "Playing the Position":
+    # --- PLAYING THE POSITION MODE ---
     if not selected_base_chords:
         st.warning("Please select at least one chord.")
         st.stop()
@@ -469,41 +466,39 @@ if mode == "Playing the Position":
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):
-    """
-    Generates a 25-key section of a keyboard with black and white keys.
-    highlight_notes should be note names like ['C', 'E', 'G'].
-    """
-    key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
-    # Repeat octaves to cover enough keys
-    keyboard_notes = key_order * 3
-    keyboard_notes = keyboard_notes[:keys_visible]
+        """
+        Generates a 25-key section of a keyboard with black and white keys.
+        highlight_notes should be note names like ['C', 'E', 'G'].
+        """
+        key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+        keyboard_notes = key_order * 3
+        keyboard_notes = keyboard_notes[:keys_visible]
 
-    img_width, img_height = 500, 120
-    white_key_height = img_height
-    black_key_height = int(img_height * 0.6)
-    white_key_width = img_width / keys_visible
+        img_width, img_height = 500, 120
+        white_key_height = img_height
+        black_key_height = int(img_height * 0.6)
+        white_key_width = img_width / keys_visible
 
-    img = Image.new("RGB", (img_width, img_height), "grey")
-    draw = ImageDraw.Draw(img)
+        img = Image.new("RGB", (img_width, img_height), "grey")
+        draw = ImageDraw.Draw(img)
 
-    # Draw white keys
-    for idx, note in enumerate(keyboard_notes):
-        if "#" not in note:
-            x0 = idx * white_key_width
-            x1 = x0 + white_key_width
-            color = "yellow" if note in highlight_notes else "white"
-            draw.rectangle([x0, 0, x1, white_key_height], fill=color, outline="black")
+        # Draw white keys
+        for idx, note in enumerate(keyboard_notes):
+            if "#" not in note:
+                x0 = idx * white_key_width
+                x1 = x0 + white_key_width
+                color = "yellow" if note in highlight_notes else "white"
+                draw.rectangle([x0, 0, x1, white_key_height], fill=color, outline="black")
 
-    # Draw black keys on top
-    for idx, note in enumerate(keyboard_notes):
-        if "#" in note:
-            x0 = idx * white_key_width + white_key_width * 0.65
-            x1 = x0 + white_key_width * 0.7
-            color = "yellow" if note in highlight_notes else "black"
-            draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
+        # Draw black keys on top
+        for idx, note in enumerate(keyboard_notes):
+            if "#" in note:
+                x0 = idx * white_key_width + white_key_width * 0.65
+                x1 = x0 + white_key_width * 0.7
+                color = "yellow" if note in highlight_notes else "black"
+                draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
 
-    return img
-
+        return img
 
     # --- Prepare answer options ---
     correct_notes = CHORDS[current_chord]

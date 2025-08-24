@@ -90,22 +90,39 @@ def draw_keyboard(chord_midis):
     st.pyplot(fig)
 
 # -------------------
-# Generate question and options
+# Generate and display question safely
 # -------------------
-def generate_question(selected_chords):
-    correct_name = random.choice(selected_chords)
-    inversion = random.choice(list(INVERSIONS.keys()))
-    correct_midi = chord_to_midi(CHORDS[correct_name], inversion)
-    # generate 3 wrong options
-    options = [(correct_name, inversion, correct_midi)]
-    while len(options) < 4:
-        wrong_name = random.choice(selected_chords)
-        if wrong_name != correct_name:
-            wrong_inversion = random.choice(list(INVERSIONS.keys()))
-            wrong_midi = chord_to_midi(CHORDS[wrong_name], wrong_inversion)
-            options.append((wrong_name, wrong_inversion, wrong_midi))
-    random.shuffle(options)
-    return options, (correct_name, inversion, correct_midi)
+if not selected_chords:
+    st.warning("Please select at least one chord to practice.")
+else:
+    # generate new question if none exists or button pressed
+    if "question" not in st.session_state or st.session_state.question is None or st.button("Next Question"):
+        options, correct = generate_question(selected_chords)
+        st.session_state.options = options
+        st.session_state.question = correct
+        st.session_state.feedback = ""
+
+    q = st.session_state.question
+
+    if q is not None:
+        if mode == "Name → Picture":
+            st.write(f"Which diagram shows **{q[0]} ({q[1]})**?")
+            draw_keyboard(q[2])
+        elif mode == "Picture → Name":
+            st.write("Which diagram matches the chord shown?")
+            cols = st.columns(2)
+            for i, (name, inversion, midi) in enumerate(st.session_state.options):
+                with cols[i % 2]:
+                    draw_keyboard(midi)
+                    if st.button(f"Select Option {i+1}", key=f"opt{i}"):
+                        if (name, inversion, midi) == q:
+                            st.session_state.feedback = "✅ Correct!"
+                        else:
+                            st.session_state.feedback = f"❌ Wrong! Correct: {q[0]} ({q[1]})"
+                        st.session_state.question = None
+
+    if st.session_state.feedback:
+        st.write(st.session_state.feedback)
 
 # -------------------
 # Streamlit app

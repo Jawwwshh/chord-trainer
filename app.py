@@ -456,70 +456,70 @@ if mode == "identify the position":
 
 elif mode == "Playing the Position":
     # --- Generate keyboard images ---
-def generate_keyboard_image(highlight_notes, keys_visible=25):
-    key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+    def generate_keyboard_image(highlight_notes, keys_visible=25):
+        key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 
-    # Generate visible keys
-    keyboard_notes = []
-    octave = 0
-    while len(keyboard_notes) < keys_visible:
-        for note in key_order:
-            keyboard_notes.append(f"{note}{octave}")
-            if len(keyboard_notes) >= keys_visible:
-                break
-        octave += 1
+        # Generate visible keys
+        keyboard_notes = []
+        octave = 0
+        while len(keyboard_notes) < keys_visible:
+            for note in key_order:
+                keyboard_notes.append(f"{note}{octave}")
+                if len(keyboard_notes) >= keys_visible:
+                    break
+            octave += 1
 
-    img_width, img_height = 500, 120
-    white_key_height = img_height
-    black_key_height = int(img_height * 0.6)
+        img_width, img_height = 500, 120
+        white_key_height = img_height
+        black_key_height = int(img_height * 0.6)
 
-    white_keys = [note for note in keyboard_notes if "#" not in note]
-    white_key_width = img_width / len(white_keys)
+        white_keys = [note for note in keyboard_notes if "#" not in note]
+        white_key_width = img_width / len(white_keys)
 
-    # --- Identify the best contiguous chord subset ---
-    best_seq = []
-    for start in range(len(keyboard_notes)):
-        seq = []
-        for note in keyboard_notes[start:]:
-            if note[:-1] in highlight_notes:
-                seq.append(note[:-1])
-            else:
-                if len(seq) > len(best_seq):
-                    best_seq = seq
-                seq = []
-        if len(seq) > len(best_seq):
-            best_seq = seq
+        # --- Identify the best contiguous chord subset ---
+        best_seq = []
+        for start in range(len(keyboard_notes)):
+            seq = []
+            for note in keyboard_notes[start:]:
+                if note[:-1] in highlight_notes:
+                    seq.append(note[:-1])
+                else:
+                    if len(seq) > len(best_seq):
+                        best_seq = seq
+                    seq = []
+            if len(seq) > len(best_seq):
+                best_seq = seq
 
-    # Pick the sequence closest to the center if there are multiple sequences
-    if best_seq:
-        highlight_set = set(best_seq)
-    else:
-        highlight_set = set()
+        # Pick the sequence closest to the center if there are multiple sequences
+        if best_seq:
+            highlight_set = set(best_seq)
+        else:
+            highlight_set = set()
 
-    img = Image.new("RGB", (img_width, img_height), "white")
-    draw = ImageDraw.Draw(img)
+        img = Image.new("RGB", (img_width, img_height), "white")
+        draw = ImageDraw.Draw(img)
 
-    # Draw white keys
-    white_key_positions = {}
-    x = 0
-    for note in keyboard_notes:
-        if "#" not in note:
-            color = "yellow" if note[:-1] in highlight_set else "white"
-            draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=color, outline="black")
-            white_key_positions[note] = x
-            x += white_key_width
+        # Draw white keys
+        white_key_positions = {}
+        x = 0
+        for note in keyboard_notes:
+            if "#" not in note:
+                color = "yellow" if note[:-1] in highlight_set else "white"
+                draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=color, outline="black")
+                white_key_positions[note] = x
+                x += white_key_width
 
-    # Draw black keys
-    for idx, note in enumerate(keyboard_notes):
-        if "#" in note:
-            left_note_idx = idx - 1
-            if keyboard_notes[left_note_idx] in white_key_positions:
-                x0 = white_key_positions[keyboard_notes[left_note_idx]] + white_key_width * 0.65
-                x1 = x0 + white_key_width * 0.7
-                color = "yellow" if note[:-1] in highlight_set else "black"
-                draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
+        # Draw black keys
+        for idx, note in enumerate(keyboard_notes):
+            if "#" in note:
+                left_note_idx = idx - 1
+                if keyboard_notes[left_note_idx] in white_key_positions:
+                    x0 = white_key_positions[keyboard_notes[left_note_idx]] + white_key_width * 0.65
+                    x1 = x0 + white_key_width * 0.7
+                    color = "yellow" if note[:-1] in highlight_set else "black"
+                    draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
 
-    return img
+        return img
 
 
     # --- Initialize session state ---

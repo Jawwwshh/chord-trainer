@@ -18,47 +18,50 @@ INVERSIONS = {
     "2nd": [2, 0, 1]
 }
 
-# -------------------
-# MIDI helper
-# -------------------
 SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 NOTE_TO_SEMI = {n:i for i,n in enumerate(SEMI_TO_NOTE)}
 
+# 25-key keyboard range
+KEYBOARD_START = 48  # C3
+KEYBOARD_END = 72    # C5
+
+# -------------------
+# MIDI helpers
+# -------------------
 def note_name_to_midi(note_name, octave):
     return NOTE_TO_SEMI[note_name] + 12 * octave
 
-# -------------------
-# Build chord MIDI notes
-# -------------------
 def build_chord_midi(chord_name, inversion, base_octave=4):
-    intervals = CHORDS[chord_name]  # e.g., [0,4,7]
     root_note = chord_name.split()[0]
-    root_midi = note_name_to_midi(root_note, base_octave)
-
-    # Base notes
-    notes = [root_midi + i for i in intervals]
-
+    intervals = CHORDS[chord_name]
+    notes = [note_name_to_midi(root_note, base_octave) + i for i in intervals]
+    
     # Apply inversion
     order = INVERSIONS[inversion]
     notes = [notes[i] for i in order]
+
+    # Shift notes to fit inside 25-key window
+    min_note = min(notes)
+    max_note = max(notes)
+    if min_note < KEYBOARD_START:
+        notes = [n + 12 for n in notes]
+    elif max_note > KEYBOARD_END:
+        notes = [n - 12 for n in notes]
 
     return notes
 
 # -------------------
 # Draw keyboard
 # -------------------
-def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
-    start_midi = note_name_to_midi(start_note[:-1], int(start_note[-1]))
-    end_midi = note_name_to_midi(end_note[:-1], int(end_note[-1]))
-
-    WHITE_SEMITONES = {0,2,4,5,7,9,11}  # C D E F G A B
-    BLACK_AFTER_WHITE = {0,2,5,7,9}     # C D F G A
+def draw_keyboard(chord_midis, start_note=KEYBOARD_START, end_note=KEYBOARD_END):
+    WHITE_SEMITONES = {0,2,4,5,7,9,11}
+    BLACK_AFTER_WHITE = {0,2,5,7,9}
 
     # Map white keys to x positions
     white_order = []
     white_x_map = {}
     x = 0
-    for m in range(start_midi, end_midi+1):
+    for m in range(start_note, end_note+1):
         if m % 12 in WHITE_SEMITONES:
             white_order.append(m)
             white_x_map[m] = x
@@ -69,17 +72,17 @@ def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
     black_w, black_h = 0.6, 2.6
     chord_set = set(chord_midis)
 
-    # Draw white keys
+    # White keys
     for m in white_order:
         wx = white_x_map[m]
         face = "yellow" if m in chord_set else "white"
         ax.add_patch(plt.Rectangle((wx,0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
 
-    # Draw black keys
+    # Black keys
     for m in white_order:
         if m % 12 in BLACK_AFTER_WHITE:
             b = m + 1
-            if start_midi <= b <= end_midi:
+            if start_note <= b <= end_note:
                 wx = white_x_map[m]
                 bx = wx + 1 - black_w/2
                 face = "red" if b in chord_set else "black"
@@ -96,11 +99,11 @@ def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
 def generate_question(selected_chords):
     chord_name = random.choice(selected_chords)
     inversion = random.choice(list(INVERSIONS.keys()))
-    midi_notes = build_chord_midi(chord_name, inversion, base_octave=4)
+    midi_notes = build_chord_midi(chord_name, inversion)
     return {"chord_name": chord_name, "inversion": inversion, "midi_notes": midi_notes}
 
 # -------------------
-# Streamlit App
+# Streamlit app
 # -------------------
 st.title("🎹 Chord Trainer")
 
@@ -156,4 +159,3 @@ elif mode == "Picture → Name":
 
 if st.session_state.feedback:
     st.write(st.session_state.feedback)
-

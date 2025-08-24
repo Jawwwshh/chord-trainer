@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import random
 
 # -------------------
-# Chord definitions
+# Chord definitions (triads on white keys only)
 # -------------------
 CHORDS = {
-    "C major": [0, 4, 7],
-    "A minor": [9, 0, 4],
-    "G major": [7, 11, 2],
-    "E minor": [4, 7, 11]
+    "C major": ["C", "E", "G"],
+    "A minor": ["A", "C", "E"],
+    "G major": ["G", "B", "D"],
+    "E minor": ["E", "G", "B"]
 }
 
 INVERSIONS = {
@@ -21,47 +21,44 @@ INVERSIONS = {
 SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 NOTE_TO_SEMI = {n:i for i,n in enumerate(SEMI_TO_NOTE)}
 
-# 25-key keyboard range
+# Keyboard range
+WHITE_KEYS_ORDER = ["C","D","E","F","G","A","B"]
 KEYBOARD_START = 48  # C3
 KEYBOARD_END = 72    # C5
 
 # -------------------
-# MIDI helpers
+# Helpers
 # -------------------
-def note_name_to_midi(note_name, octave):
+def note_to_midi(note_name, octave):
     return NOTE_TO_SEMI[note_name] + 12 * octave
 
-def build_chord_midi(chord_name, inversion, base_octave=4):
-    root_note = chord_name.split()[0]
-    intervals = CHORDS[chord_name]
-    notes = [note_name_to_midi(root_note, base_octave) + i for i in intervals]
-    
-    # Apply inversion
+def chord_to_midi(chord_notes, inversion="root", base_octave=4):
+    # reorder notes for inversion
     order = INVERSIONS[inversion]
-    notes = [notes[i] for i in order]
-
-    # Shift notes to fit inside 25-key window
-    min_note = min(notes)
-    max_note = max(notes)
+    notes_ordered = [chord_notes[i] for i in order]
+    # convert to MIDI
+    midi_notes = [note_to_midi(n, base_octave) for n in notes_ordered]
+    # center the chord inside C3-C5
+    min_note = min(midi_notes)
+    max_note = max(midi_notes)
     if min_note < KEYBOARD_START:
-        notes = [n + 12 for n in notes]
-    elif max_note > KEYBOARD_END:
-        notes = [n - 12 for n in notes]
-
-    return notes
+        midi_notes = [n+12 for n in midi_notes]
+    if max_note > KEYBOARD_END:
+        midi_notes = [n-12 for n in midi_notes]
+    return midi_notes
 
 # -------------------
 # Draw keyboard
 # -------------------
-def draw_keyboard(chord_midis, start_note=KEYBOARD_START, end_note=KEYBOARD_END):
+def draw_keyboard(chord_midis):
     WHITE_SEMITONES = {0,2,4,5,7,9,11}
-    BLACK_AFTER_WHITE = {0,2,5,7,9}
+    BLACK_AFTER_WHITE = {0,2,5,7,9}  # positions with black keys after
 
-    # Map white keys to x positions
+    # white keys positions
     white_order = []
     white_x_map = {}
     x = 0
-    for m in range(start_note, end_note+1):
+    for m in range(KEYBOARD_START, KEYBOARD_END+1):
         if m % 12 in WHITE_SEMITONES:
             white_order.append(m)
             white_x_map[m] = x
@@ -72,21 +69,20 @@ def draw_keyboard(chord_midis, start_note=KEYBOARD_START, end_note=KEYBOARD_END)
     black_w, black_h = 0.6, 2.6
     chord_set = set(chord_midis)
 
-    # White keys
+    # draw white keys
     for m in white_order:
         wx = white_x_map[m]
         face = "yellow" if m in chord_set else "white"
         ax.add_patch(plt.Rectangle((wx,0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
 
-    # Black keys
+    # draw black keys (never highlight them)
     for m in white_order:
         if m % 12 in BLACK_AFTER_WHITE:
             b = m + 1
-            if start_note <= b <= end_note:
+            if KEYBOARD_START <= b <= KEYBOARD_END:
                 wx = white_x_map[m]
                 bx = wx + 1 - black_w/2
-                face = "red" if b in chord_set else "black"
-                ax.add_patch(plt.Rectangle((bx, white_h - black_h), black_w, black_h, facecolor=face, edgecolor="black", zorder=2))
+                ax.add_patch(plt.Rectangle((bx, white_h-black_h), black_w, black_h, facecolor="black", edgecolor="black", zorder=2))
 
     ax.set_xlim(0, len(white_order))
     ax.set_ylim(0, white_h)
@@ -94,25 +90,29 @@ def draw_keyboard(chord_midis, start_note=KEYBOARD_START, end_note=KEYBOARD_END)
     st.pyplot(fig)
 
 # -------------------
-# Generate question
+# Generate question and options
 # -------------------
 def generate_question(selected_chords):
-    chord_name = random.choice(selected_chords)
+    correct_name = random.choice(selected_chords)
     inversion = random.choice(list(INVERSIONS.keys()))
-    midi_notes = build_chord_midi(chord_name, inversion)
-    return {"chord_name": chord_name, "inversion": inversion, "midi_notes": midi_notes}
+    correct_midi = chord_to_midi(CHORDS[correct_name], inversion)
+    # generate 3 wrong options
+    options = [(correct_name, inversion, correct_midi)]
+    while len(options) < 4:
+        wrong_name = random.choice(selected_chords)
+        if wrong_name != correct_name:
+            wrong_inversion = random.choice(list(INVERSIONS.keys()))
+            wrong_midi = chord_to_midi(CHORDS[wrong_name], wrong_inversion)
+            options.append((wrong_name, wrong_inversion, wrong_midi))
+    random.shuffle(options)
+    return options, (correct_name, inversion, correct_midi)
 
 # -------------------
 # Streamlit app
 # -------------------
 st.title("🎹 Chord Trainer")
 
-selected_chords = st.multiselect(
-    "Select chords to practice", 
-    list(CHORDS.keys()), 
-    default=list(CHORDS.keys())
-)
-
+selected_chords = st.multiselect("Select chords to practice", list(CHORDS.keys()), default=list(CHORDS.keys()))
 mode = st.radio("Mode", ["Name → Picture", "Picture → Name"])
 
 if "question" not in st.session_state:
@@ -121,41 +121,30 @@ if "question" not in st.session_state:
     st.session_state.feedback = ""
 
 if st.button("Next Question") or st.session_state.question is None:
-    st.session_state.question = generate_question(selected_chords)
-
-    # Build options for "Picture → Name"
-    if mode == "Picture → Name":
-        correct = st.session_state.question
-        options = [correct]
-        while len(options) < 4:
-            wrong = generate_question(selected_chords)
-            if wrong not in options:
-                options.append(wrong)
-        random.shuffle(options)
-        st.session_state.options = options
+    options, correct = generate_question(selected_chords)
+    st.session_state.options = options
+    st.session_state.question = correct
     st.session_state.feedback = ""
 
-# -------------------
-# Display question
-# -------------------
 q = st.session_state.question
 
 if mode == "Name → Picture":
-    st.write(f"Which diagram shows **{q['chord_name']} ({q['inversion']})**?")
-    draw_keyboard(q['midi_notes'])
+    st.write(f"Which diagram shows **{q[0]} ({q[1]})**?")
+    draw_keyboard(q[2])
 
 elif mode == "Picture → Name":
     st.write("Which diagram matches the chord shown?")
     cols = st.columns(2)
-    for i, option in enumerate(st.session_state.options):
+    for i, (name, inversion, midi) in enumerate(st.session_state.options):
         with cols[i % 2]:
-            draw_keyboard(option['midi_notes'])
+            draw_keyboard(midi)
             if st.button(f"Select Option {i+1}", key=f"opt{i}"):
-                if option == q:
+                if (name, inversion, midi) == q:
                     st.session_state.feedback = "✅ Correct!"
                 else:
-                    st.session_state.feedback = f"❌ Wrong! Correct: {q['chord_name']} ({q['inversion']})"
-                st.session_state.question = None  # clear to generate new question next click
+                    st.session_state.feedback = f"❌ Wrong! Correct: {q[0]} ({q[1]})"
+                st.session_state.question = None
 
 if st.session_state.feedback:
     st.write(st.session_state.feedback)
+

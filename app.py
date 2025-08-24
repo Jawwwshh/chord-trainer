@@ -457,13 +457,8 @@ if mode == "identify the position":
 elif mode == "Playing the Position":
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):
-        """
-        Generates a 25-key segment of a keyboard with black and white keys correctly positioned.
-        highlight_notes should be note names like ['C', 'E', 'G'].
-        """
         key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
 
-        # Generate the 25 keys in order
         keyboard_notes = []
         octave = 0
         while len(keyboard_notes) < keys_visible:
@@ -477,14 +472,12 @@ elif mode == "Playing the Position":
         white_key_height = img_height
         black_key_height = int(img_height * 0.6)
 
-        # Count white keys for width
         white_keys = [note for note in keyboard_notes if "#" not in note]
         white_key_width = img_width / len(white_keys)
 
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
 
-        # Draw white keys
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
@@ -494,10 +487,8 @@ elif mode == "Playing the Position":
                 white_key_positions[note] = x
                 x += white_key_width
 
-        # Draw black keys
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
-                # Black keys sit between white keys
                 left_note_idx = idx - 1
                 if keyboard_notes[left_note_idx] in white_key_positions:
                     x0 = white_key_positions[keyboard_notes[left_note_idx]] + white_key_width * 0.65
@@ -522,7 +513,7 @@ elif mode == "Playing the Position":
     current_chord = st.session_state.play_current_chord
     st.write(f"### Which diagram shows: {current_chord}?")
 
-    # Generate images for current question
+    # --- Generate options ---
     correct_notes = CHORDS[current_chord]
     correct_img = generate_keyboard_image(correct_notes)
 
@@ -533,7 +524,7 @@ elif mode == "Playing the Position":
     options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
     random.shuffle(options)
 
-    # --- Display options ---
+    # --- Display options with buttons ---
     cols = st.columns(len(options))
     for idx, (chord_name, img) in enumerate(options):
         with cols[idx]:
@@ -548,32 +539,3 @@ elif mode == "Playing the Position":
     # --- Show feedback ---
     if st.session_state.play_feedback:
         st.info(st.session_state.play_feedback)
-
-    # --- Prepare answer options ---
-    correct_notes = CHORDS[current_chord]
-    correct_img = generate_keyboard_image(correct_notes)
-
-    # Pick up to 3 wrong chords
-    other_chords = [ch for ch in all_selected_chords if ch != current_chord]
-    wrong_chords = random.sample(other_chords, min(3, len(other_chords)))
-    wrong_imgs = [generate_keyboard_image(CHORDS[ch]) for ch in wrong_chords]
-
-    # Combine correct and wrong options, then shuffle
-    options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
-    random.shuffle(options)
-
-    # --- Display images with selection buttons ---
-    cols = st.columns(len(options))
-    clicked_option = None
-    for idx, (chord_name, img) in enumerate(options):
-        with cols[idx]:
-            st.image(img)
-            if st.button("Select", key=f"play_{chord_name}"):
-                clicked_option = chord_name
-
-    # --- Feedback ---
-    if clicked_option:
-        if clicked_option == current_chord:
-            st.success(f"✅ Correct! It was {current_chord}")
-        else:
-            st.error(f"❌ Incorrect. It was {current_chord}")

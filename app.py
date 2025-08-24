@@ -476,25 +476,25 @@ elif mode == "Playing the Position":
         white_keys = [note for note in keyboard_notes if "#" not in note]
         white_key_width = img_width / len(white_keys)
 
-        # --- Identify central contiguous highlight sequence ---
-        # Find indices of all keys that are in highlight_notes
-        highlight_indices = [i for i, n in enumerate(keyboard_notes) if n[:-1] in highlight_notes]
+        # --- Identify central chord group ---
+        # Find all sequences of highlight_notes in order
+        seq_indices = []
+        for start_idx in range(len(keyboard_notes)):
+            match = True
+            for i, note in enumerate(highlight_notes):
+                if start_idx + i >= len(keyboard_notes) or keyboard_notes[start_idx + i][:-1] != note:
+                    match = False
+                    break
+            if match:
+                seq_indices.append(list(range(start_idx, start_idx + len(highlight_notes))))
 
-        # Find longest contiguous sequence
-        longest_seq = []
-        current_seq = []
-        for idx in highlight_indices:
-            if current_seq and idx == current_seq[-1] + 1:
-                current_seq.append(idx)
-            else:
-                if len(current_seq) > len(longest_seq):
-                    longest_seq = current_seq
-                current_seq = [idx]
-        if len(current_seq) > len(longest_seq):
-            longest_seq = current_seq
-
-        # Only highlight notes in the longest contiguous sequence
-        highlight_set = {keyboard_notes[i][:-1] for i in longest_seq}
+        # Pick the sequence closest to the center of the keyboard
+        if seq_indices:
+            center_idx = len(keyboard_notes) // 2
+            best_seq = min(seq_indices, key=lambda s: abs((s[0]+s[-1])/2 - center_idx))
+            highlight_set = {keyboard_notes[i][:-1] for i in best_seq}
+        else:
+            highlight_set = set()
 
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
@@ -518,8 +518,9 @@ elif mode == "Playing the Position":
                     x1 = x0 + white_key_width * 0.7
                     color = "yellow" if note[:-1] in highlight_set else "black"
                     draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
-
+    
         return img
+
 
     # --- Initialize session state ---
     if "play_current_chord" not in st.session_state:

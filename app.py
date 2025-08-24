@@ -3,6 +3,9 @@ import random
 from collections import defaultdict
 from PIL import Image, ImageDraw
 
+# --- MODE SELECTION (top of page) ---
+mode = st.sidebar.selectbox("Select Mode", ["identify the position", "Playing the Position"])
+
 # Full chord dictionary with triads, sevenths, and inversions
 CHORDS = {
     # Major triads
@@ -377,6 +380,8 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
+if mode == "identify the position":
+
 # --- Build selected chords dict ---
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
@@ -450,8 +455,7 @@ if attempts and st.session_state.last_attempt:
     else:
         st.error(f"❌ Incorrect. Try again!")
 
-# --- MODE SELECTION ---
-mode = st.sidebar.selectbox("Select Mode", ["Quiz", "Playing the Position"])
+elif mode == "Playing the Position":
 
 # --- PLAYING THE POSITION MODE ---
 if mode == "Playing the Position":
@@ -465,35 +469,41 @@ if mode == "Playing the Position":
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):
-        """
-        Generates an image of a 25-key section of a keyboard,
-        highlighting the notes in highlight_notes (yellow).
-        """
-        key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
-        # Repeat 3 octaves to cover enough keys
-        keyboard_notes = key_order * 3
-        keyboard_notes = keyboard_notes[:keys_visible]
+    """
+    Generates a 25-key section of a keyboard with black and white keys.
+    highlight_notes should be note names like ['C', 'E', 'G'].
+    """
+    key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+    # Repeat octaves to cover enough keys
+    keyboard_notes = key_order * 3
+    keyboard_notes = keyboard_notes[:keys_visible]
 
-        # Highlight only the first occurrence of each note
-        note_indices = [i for i, k in enumerate(keyboard_notes) if k in highlight_notes]
-        if not note_indices:
-            start_idx = 0
-        else:
-            center = sum(note_indices) // len(note_indices)
-            start_idx = max(0, center - keys_visible // 2)
-            keyboard_notes = keyboard_notes[start_idx:start_idx + keys_visible]
+    img_width, img_height = 500, 120
+    white_key_height = img_height
+    black_key_height = int(img_height * 0.6)
+    white_key_width = img_width / keys_visible
 
-        img_width, img_height = 500, 100
-        img = Image.new("RGB", (img_width, img_height), "white")
-        draw = ImageDraw.Draw(img)
-        key_width = img_width / len(keyboard_notes)
+    img = Image.new("RGB", (img_width, img_height), "grey")
+    draw = ImageDraw.Draw(img)
 
-        for idx, note in enumerate(keyboard_notes):
-            x0 = idx * key_width
-            x1 = x0 + key_width
+    # Draw white keys
+    for idx, note in enumerate(keyboard_notes):
+        if "#" not in note:
+            x0 = idx * white_key_width
+            x1 = x0 + white_key_width
             color = "yellow" if note in highlight_notes else "white"
-            draw.rectangle([x0, 0, x1, img_height], fill=color, outline="black")
-        return img
+            draw.rectangle([x0, 0, x1, white_key_height], fill=color, outline="black")
+
+    # Draw black keys on top
+    for idx, note in enumerate(keyboard_notes):
+        if "#" in note:
+            x0 = idx * white_key_width + white_key_width * 0.65
+            x1 = x0 + white_key_width * 0.7
+            color = "yellow" if note in highlight_notes else "black"
+            draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
+
+    return img
+
 
     # --- Prepare answer options ---
     correct_notes = CHORDS[current_chord]

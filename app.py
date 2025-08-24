@@ -1,450 +1,171 @@
 import streamlit as st
+import matplotlib.pyplot as plt
 import random
-from collections import defaultdict
 
-# Full chord dictionary with triads, sevenths, and inversions
-CHORDS = {
-    # Major triads
-    "C major root": ["C", "E", "G"],
-    "C major 1st inversion": ["E", "G", "C"],
-    "C major 2nd inversion": ["G", "C", "E"],
-    "C# major root": ["C#", "E#", "G#"],
-    "C# major 1st inversion": ["E#", "G#", "C#"],
-    "C# major 2nd inversion": ["G#", "C#", "E#"],
-    "D major root": ["D", "F#", "A"],
-    "D major 1st inversion": ["F#", "A", "D"],
-    "D major 2nd inversion": ["A", "D", "F#"],
-    "Eb major root": ["Eb", "G", "Bb"],
-    "Eb major 1st inversion": ["G", "Bb", "Eb"],
-    "Eb major 2nd inversion": ["Bb", "Eb", "G"],
-    "E major root": ["E", "G#", "B"],
-    "E major 1st inversion": ["G#", "B", "E"],
-    "E major 2nd inversion": ["B", "E", "G#"],
-    "F major root": ["F", "A", "C"],
-    "F major 1st inversion": ["A", "C", "F"],
-    "F major 2nd inversion": ["C", "F", "A"],
-    "F# major root": ["F#", "A#", "C#"],
-    "F# major 1st inversion": ["A#", "C#", "F#"],
-    "F# major 2nd inversion": ["C#", "F#", "A#"],
-    "G major root": ["G", "B", "D"],
-    "G major 1st inversion": ["B", "D", "G"],
-    "G major 2nd inversion": ["D", "G", "B"],
-    "Ab major root": ["Ab", "C", "Eb"],
-    "Ab major 1st inversion": ["C", "Eb", "Ab"],
-    "Ab major 2nd inversion": ["Eb", "Ab", "C"],
-    "A major root": ["A", "C#", "E"],
-    "A major 1st inversion": ["C#", "E", "A"],
-    "A major 2nd inversion": ["E", "A", "C#"],
-    "Bb major root": ["Bb", "D", "F"],
-    "Bb major 1st inversion": ["D", "F", "Bb"],
-    "Bb major 2nd inversion": ["F", "Bb", "D"],
-    "B major root": ["B", "D#", "F#"],
-    "B major 1st inversion": ["D#", "F#", "B"],
-    "B major 2nd inversion": ["F#", "B", "D#"],
+# 🎹 Define 25-key keyboard (C3–C5)
+WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B"]
+BLACK_KEYS = ["C#", "D#", "F#", "G#", "A#"]
+START_OCTAVE = 3
+NUM_KEYS = 25  # C3 → C5
 
-    # Minor triads
-    "C minor root": ["C", "Eb", "G"],
-    "C minor 1st inversion": ["Eb", "G", "C"],
-    "C minor 2nd inversion": ["G", "C", "Eb"],
-    "C# minor root": ["C#", "E", "G#"],
-    "C# minor 1st inversion": ["E", "G#", "C#"],
-    "C# minor 2nd inversion": ["G#", "C#", "E"],
-    "D minor root": ["D", "F", "A"],
-    "D minor 1st inversion": ["F", "A", "D"],
-    "D minor 2nd inversion": ["A", "D", "F"],
-    "Eb minor root": ["Eb", "Gb", "Bb"],
-    "Eb minor 1st inversion": ["Gb", "Bb", "Eb"],
-    "Eb minor 2nd inversion": ["Bb", "Eb", "Gb"],
-    "E minor root": ["E", "G", "B"],
-    "E minor 1st inversion": ["G", "B", "E"],
-    "E minor 2nd inversion": ["B", "E", "G"],
-    "F minor root": ["F", "Ab", "C"],
-    "F minor 1st inversion": ["Ab", "C", "F"],
-    "F minor 2nd inversion": ["C", "F", "Ab"],
-    "F# minor root": ["F#", "A", "C#"],
-    "F# minor 1st inversion": ["A", "C#", "F#"],
-    "F# minor 2nd inversion": ["C#", "F#", "A"],
-    "G minor root": ["G", "Bb", "D"],
-    "G minor 1st inversion": ["Bb", "D", "G"],
-    "G minor 2nd inversion": ["D", "G", "Bb"],
-    "Ab minor root": ["Ab", "Cb", "Eb"],
-    "Ab minor 1st inversion": ["Cb", "Eb", "Ab"],
-    "Ab minor 2nd inversion": ["Eb", "Ab", "Cb"],
-    "A minor root": ["A", "C", "E"],
-    "A minor 1st inversion": ["C", "E", "A"],
-    "A minor 2nd inversion": ["E", "A", "C"],
-    "Bb minor root": ["Bb", "Db", "F"],
-    "Bb minor 1st inversion": ["Db", "F", "Bb"],
-    "Bb minor 2nd inversion": ["F", "Bb", "Db"],
-    "B minor root": ["B", "D", "F#"],
-    "B minor 1st inversion": ["D", "F#", "B"],
-    "B minor 2nd inversion": ["F#", "B", "D"],
+# Build full note list
+NOTES = []
+for i in range(NUM_KEYS):
+    octave = START_OCTAVE + (i // 12)
+    note_name = WHITE_KEYS[i % 7] if (i % 12) in [0,2,4,5,7,9,11] else None
+    # Actually define by semitones
+    SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+    note = SEMI_TO_NOTE[i % 12] + str(START_OCTAVE + (i // 12))
+    NOTES.append(note)
 
-    # Diminished triads
-    "C diminished root": ["C", "Eb", "Gb"],
-    "C diminished 1st inversion": ["Eb", "Gb", "C"],
-    "C diminished 2nd inversion": ["Gb", "C", "Eb"],
-    "C# diminished root": ["C#", "E", "G"],
-    "C# diminished 1st inversion": ["E", "G", "C#"],
-    "C# diminished 2nd inversion": ["G", "C#", "E"],
-    "D diminished root": ["D", "F", "Ab"],
-    "D diminished 1st inversion": ["F", "Ab", "D"],
-    "D diminished 2nd inversion": ["Ab", "D", "F"],
-    "Eb diminished root": ["Eb", "Gb", "Bbb"],
-    "Eb diminished 1st inversion": ["Gb", "Bbb", "Eb"],
-    "Eb diminished 2nd inversion": ["Bbb", "Eb", "Gb"],
-    "E diminished root": ["E", "G", "Bb"],
-    "E diminished 1st inversion": ["G", "Bb", "E"],
-    "E diminished 2nd inversion": ["Bb", "E", "G"],
-    "F diminished root": ["F", "Ab", "Cb"],
-    "F diminished 1st inversion": ["Ab", "Cb", "F"],
-    "F diminished 2nd inversion": ["Cb", "F", "Ab"],
-    "F# diminished root": ["F#", "A", "C"],
-    "F# diminished 1st inversion": ["A", "C", "F#"],
-    "F# diminished 2nd inversion": ["C", "F#", "A"],
-    "G diminished root": ["G", "Bb", "Db"],
-    "G diminished 1st inversion": ["Bb", "Db", "G"],
-    "G diminished 2nd inversion": ["Db", "G", "Bb"],
-    "Ab diminished root": ["Ab", "Cb", "Ebb"],
-    "Ab diminished 1st inversion": ["Cb", "Ebb", "Ab"],
-    "Ab diminished 2nd inversion": ["Ebb", "Ab", "Cb"],
-    "A diminished root": ["A", "C", "Eb"],
-    "A diminished 1st inversion": ["C", "Eb", "A"],
-    "A diminished 2nd inversion": ["Eb", "A", "C"],
-    "Bb diminished root": ["Bb", "Db", "Fb"],
-    "Bb diminished 1st inversion": ["Db", "Fb", "Bb"],
-    "Bb diminished 2nd inversion": ["Fb", "Bb", "Db"],
-    "B diminished root": ["B", "D", "F"],
-    "B diminished 1st inversion": ["D", "F", "B"],
-    "B diminished 2nd inversion": ["F", "B", "D"],
-
-    # Major sevenths
-    "C major seventh root": ["C", "E", "G", "B"],
-    "C major seventh 1st inversion": ["E", "G", "B", "C"],
-    "C major seventh 2nd inversion": ["G", "B", "C", "E"],
-    "C major seventh 3rd inversion": ["B", "C", "E", "G"],
-    "C# major seventh root": ["C#", "E#", "G#", "B#"],
-    "C# major seventh 1st inversion": ["E#", "G#", "B#", "C#"],
-    "C# major seventh 2nd inversion": ["G#", "B#", "C#", "E#"],
-    "C# major seventh 3rd inversion": ["B#", "C#", "E#", "G#"],
-    "D major seventh root": ["D", "F#", "A", "C#"],
-    "D major seventh 1st inversion": ["F#", "A", "C#", "D"],
-    "D major seventh 2nd inversion": ["A", "C#", "D", "F#"],
-    "D major seventh 3rd inversion": ["C#", "D", "F#", "A"],
-    "Eb major seventh root": ["Eb", "G", "Bb", "D"],
-    "Eb major seventh 1st inversion": ["G", "Bb", "D", "Eb"],
-    "Eb major seventh 2nd inversion": ["Bb", "D", "Eb", "G"],
-    "Eb major seventh 3rd inversion": ["D", "Eb", "G", "Bb"],
-    "E major seventh root": ["E", "G#", "B", "D#"],
-    "E major seventh 1st inversion": ["G#", "B", "D#", "E"],
-    "E major seventh 2nd inversion": ["B", "D#", "E", "G#"],
-    "E major seventh 3rd inversion": ["D#", "E", "G#", "B"],
-    "F major seventh root": ["F", "A", "C", "E"],
-    "F major seventh 1st inversion": ["A", "C", "E", "F"],
-    "F major seventh 2nd inversion": ["C", "E", "F", "A"],
-    "F major seventh 3rd inversion": ["E", "F", "A", "C"],
-    "F# major seventh root": ["F#", "A#", "C#", "E#"],
-    "F# major seventh 1st inversion": ["A#", "C#", "E#", "F#"],
-    "F# major seventh 2nd inversion": ["C#", "E#", "F#", "A#"],
-    "F# major seventh 3rd inversion": ["E#", "F#", "A#", "C#"],
-    "G major seventh root": ["G", "B", "D", "F#"],
-    "G major seventh 1st inversion": ["B", "D", "F#", "G"],
-    "G major seventh 2nd inversion": ["D", "F#", "G", "B"],
-    "G major seventh 3rd inversion": ["F#", "G", "B", "D"],
-    "Ab major seventh root": ["Ab", "C", "Eb", "G"],
-    "Ab major seventh 1st inversion": ["C", "Eb", "G", "Ab"],
-    "Ab major seventh 2nd inversion": ["Eb", "G", "Ab", "C"],
-    "Ab major seventh 3rd inversion": ["G", "Ab", "C", "Eb"],
-    "A major seventh root": ["A", "C#", "E", "G#"],
-    "A major seventh 1st inversion": ["C#", "E", "G#", "A"],
-    "A major seventh 2nd inversion": ["E", "G#", "A", "C#"],
-    "A major seventh 3rd inversion": ["G#", "A", "C#", "E"],
-    "Bb major seventh root": ["Bb", "D", "F", "A"],
-    "Bb major seventh 1st inversion": ["D", "F", "A", "Bb"],
-    "Bb major seventh 2nd inversion": ["F", "A", "Bb", "D"],
-    "Bb major seventh 3rd inversion": ["A", "Bb", "D", "F"],
-    "B major seventh root": ["B", "D#", "F#", "A#"],
-    "B major seventh 1st inversion": ["D#", "F#", "A#", "B"],
-    "B major seventh 2nd inversion": ["F#", "A#", "B", "D#"],
-    "B major seventh 3rd inversion": ["A#", "B", "D#", "F#"],
-
-    # Dominant sevenths
-    "C dominant seventh root": ["C", "E", "G", "Bb"],
-    "C dominant seventh 1st inversion": ["E", "G", "Bb", "C"],
-    "C dominant seventh 2nd inversion": ["G", "Bb", "C", "E"],
-    "C dominant seventh 3rd inversion": ["Bb", "C", "E", "G"],
-    "C# dominant seventh root": ["C#", "E#", "G#", "B"],
-    "C# dominant seventh 1st inversion": ["E#", "G#", "B", "C#"],
-    "C# dominant seventh 2nd inversion": ["G#", "B", "C#", "E#"],
-    "C# dominant seventh 3rd inversion": ["B", "C#", "E#", "G#"],
-    "D dominant seventh root": ["D", "F#", "A", "C"],
-    "D dominant seventh 1st inversion": ["F#", "A", "C", "D"],
-    "D dominant seventh 2nd inversion": ["A", "C", "D", "F#"],
-    "D dominant seventh 3rd inversion": ["C", "D", "F#", "A"],
-    "Eb dominant seventh root": ["Eb", "G", "Bb", "Db"],
-    "Eb dominant seventh 1st inversion": ["G", "Bb", "Db", "Eb"],
-    "Eb dominant seventh 2nd inversion": ["Bb", "Db", "Eb", "G"],
-    "Eb dominant seventh 3rd inversion": ["Db", "Eb", "G", "Bb"],
-    "E dominant seventh root": ["E", "G#", "B", "D"],
-    "E dominant seventh 1st inversion": ["G#", "B", "D", "E"],
-    "E dominant seventh 2nd inversion": ["B", "D", "E", "G#"],
-    "E dominant seventh 3rd inversion": ["D", "E", "G#", "B"],
-    "F dominant seventh root": ["F", "A", "C", "Eb"],
-    "F dominant seventh 1st inversion": ["A", "C", "Eb", "F"],
-    "F dominant seventh 2nd inversion": ["C", "Eb", "F", "A"],
-    "F dominant seventh 3rd inversion": ["Eb", "F", "A", "C"],
-    "F# dominant seventh root": ["F#", "A#", "C#", "E"],
-    "F# dominant seventh 1st inversion": ["A#", "C#", "E", "F#"],
-    "F# dominant seventh 2nd inversion": ["C#", "E", "F#", "A#"],
-    "F# dominant seventh 3rd inversion": ["E", "F#", "A#", "C#"],
-    "G dominant seventh root": ["G", "B", "D", "F"],
-    "G dominant seventh 1st inversion": ["B", "D", "F", "G"],
-    "G dominant seventh 2nd inversion": ["D", "F", "G", "B"],
-    "G dominant seventh 3rd inversion": ["F", "G", "B", "D"],
-    "Ab dominant seventh root": ["Ab", "C", "Eb", "Gb"],
-    "Ab dominant seventh 1st inversion": ["C", "Eb", "Gb", "Ab"],
-    "Ab dominant seventh 2nd inversion": ["Eb", "Gb", "Ab", "C"],
-    "Ab dominant seventh 3rd inversion": ["Gb", "Ab", "C", "Eb"],
-    "A dominant seventh root": ["A", "C#", "E", "G"],
-    "A dominant seventh 1st inversion": ["C#", "E", "G", "A"],
-    "A dominant seventh 2nd inversion": ["E", "G", "A", "C#"],
-    "A dominant seventh 3rd inversion": ["G", "A", "C#", "E"],
-    "Bb dominant seventh root": ["Bb", "D", "F", "Ab"],
-    "Bb dominant seventh 1st inversion": ["D", "F", "Ab", "Bb"],
-    "Bb dominant seventh 2nd inversion": ["F", "Ab", "Bb", "D"],
-    "Bb dominant seventh 3rd inversion": ["Ab", "Bb", "D", "F"],
-    "B dominant seventh root": ["B", "D#", "F#", "A"],
-    "B dominant seventh 1st inversion": ["D#", "F#", "A", "B"],
-    "B dominant seventh 2nd inversion": ["F#", "A", "B", "D#"],
-    "B dominant seventh 3rd inversion": ["A", "B", "D#", "F#"],
-
-    # Minor sevenths
-    "C minor seventh root": ["C", "Eb", "G", "Bb"],
-    "C minor seventh 1st inversion": ["Eb", "G", "Bb", "C"],
-    "C minor seventh 2nd inversion": ["G", "Bb", "C", "Eb"],
-    "C minor seventh 3rd inversion": ["Bb", "C", "Eb", "G"],
-    "C# minor seventh root": ["C#", "E", "G#", "B"],
-    "C# minor seventh 1st inversion": ["E", "G#", "B", "C#"],
-    "C# minor seventh 2nd inversion": ["G#", "B", "C#", "E"],
-    "C# minor seventh 3rd inversion": ["B", "C#", "E", "G#"],
-    "D minor seventh root": ["D", "F", "A", "C"],
-    "D minor seventh 1st inversion": ["F", "A", "C", "D"],
-    "D minor seventh 2nd inversion": ["A", "C", "D", "F"],
-    "D minor seventh 3rd inversion": ["C", "D", "F", "A"],
-    "Eb minor seventh root": ["Eb", "Gb", "Bb", "Db"],
-    "Eb minor seventh 1st inversion": ["Gb", "Bb", "Db", "Eb"],
-    "Eb minor seventh 2nd inversion": ["Bb", "Db", "Eb", "Gb"],
-    "Eb minor seventh 3rd inversion": ["Db", "Eb", "Gb", "Bb"],
-    "E minor seventh root": ["E", "G", "B", "D"],
-    "E minor seventh 1st inversion": ["G", "B", "D", "E"],
-    "E minor seventh 2nd inversion": ["B", "D", "E", "G"],
-    "E minor seventh 3rd inversion": ["D", "E", "G", "B"],
-    "F minor seventh root": ["F", "Ab", "C", "Eb"],
-    "F minor seventh 1st inversion": ["Ab", "C", "Eb", "F"],
-    "F minor seventh 2nd inversion": ["C", "Eb", "F", "Ab"],
-    "F minor seventh 3rd inversion": ["Eb", "F", "Ab", "C"],
-    "F# minor seventh root": ["F#", "A", "C#", "E"],
-    "F# minor seventh 1st inversion": ["A", "C#", "E", "F#"],
-    "F# minor seventh 2nd inversion": ["C#", "E", "F#", "A"],
-    "F# minor seventh 3rd inversion": ["E", "F#", "A", "C#"],
-    "G minor seventh root": ["G", "Bb", "D", "F"],
-    "G minor seventh 1st inversion": ["Bb", "D", "F", "G"],
-    "G minor seventh 2nd inversion": ["D", "F", "G", "Bb"],
-    "G minor seventh 3rd inversion": ["F", "G", "Bb", "D"],
-    "Ab minor seventh root": ["Ab", "Cb", "Eb", "Gb"],
-    "Ab minor seventh 1st inversion": ["Cb", "Eb", "Gb", "Ab"],
-    "Ab minor seventh 2nd inversion": ["Eb", "Gb", "Ab", "Cb"],
-    "Ab minor seventh 3rd inversion": ["Gb", "Ab", "Cb", "Eb"],
-    "A minor seventh root": ["A", "C", "E", "G"],
-    "A minor seventh 1st inversion": ["C", "E", "G", "A"],
-    "A minor seventh 2nd inversion": ["E", "G", "A", "C"],
-    "A minor seventh 3rd inversion": ["G", "A", "C", "E"],
-    "Bb minor seventh root": ["Bb", "Db", "F", "Ab"],
-    "Bb minor seventh 1st inversion": ["Db", "F", "Ab", "Bb"],
-    "Bb minor seventh 2nd inversion": ["F", "Ab", "Bb", "Db"],
-    "Bb minor seventh 3rd inversion": ["Ab", "Bb", "Db", "F"],
-    "B minor seventh root": ["B", "D", "F#", "A"],
-    "B minor seventh 1st inversion": ["D", "F#", "A", "B"],
-    "B minor seventh 2nd inversion": ["F#", "A", "B", "D"],
-    "B minor seventh 3rd inversion": ["A", "B", "D", "F#"],
-
-    # Minor seventh flat five (half-diminished)
-    "C minor seventh flat five root": ["C", "Eb", "Gb", "Bb"],
-    "C minor seventh flat five 1st inversion": ["Eb", "Gb", "Bb", "C"],
-    "C minor seventh flat five 2nd inversion": ["Gb", "Bb", "C", "Eb"],
-    "C minor seventh flat five 3rd inversion": ["Bb", "C", "Eb", "Gb"],
-    "C# minor seventh flat five root": ["C#", "E", "G", "B"],
-    "C# minor seventh flat five 1st inversion": ["E", "G", "B", "C#"],
-    "C# minor seventh flat five 2nd inversion": ["G", "B", "C#", "E"],
-    "C# minor seventh flat five 3rd inversion": ["B", "C#", "E", "G"],
-    "D minor seventh flat five root": ["D", "F", "Ab", "C"],
-    "D minor seventh flat five 1st inversion": ["F", "Ab", "C", "D"],
-    "D minor seventh flat five 2nd inversion": ["Ab", "C", "D", "F"],
-    "D minor seventh flat five 3rd inversion": ["C", "D", "F", "Ab"],
-    "Eb minor seventh flat five root": ["Eb", "Gb", "Bbb", "Db"],
-    "Eb minor seventh flat five 1st inversion": ["Gb", "Bbb", "Db", "Eb"],
-    "Eb minor seventh flat five 2nd inversion": ["Bbb", "Db", "Eb", "Gb"],
-    "Eb minor seventh flat five 3rd inversion": ["Db", "Eb", "Gb", "Bbb"],
-    "E minor seventh flat five root": ["E", "G", "Bb", "D"],
-    "E minor seventh flat five 1st inversion": ["G", "Bb", "D", "E"],
-    "E minor seventh flat five 2nd inversion": ["Bb", "D", "E", "G"],
-    "E minor seventh flat five 3rd inversion": ["D", "E", "G", "Bb"],
-    "F minor seventh flat five root": ["F", "Ab", "Cb", "Eb"],
-    "F minor seventh flat five 1st inversion": ["Ab", "Cb", "Eb", "F"],
-    "F minor seventh flat five 2nd inversion": ["Cb", "Eb", "F", "Ab"],
-    "F minor seventh flat five 3rd inversion": ["Eb", "F", "Ab", "Cb"],
-    "F# minor seventh flat five root": ["F#", "A", "C", "E"],
-    "F# minor seventh flat five 1st inversion": ["A", "C", "E", "F#"],
-    "F# minor seventh flat five 2nd inversion": ["C", "E", "F#", "A"],
-    "F# minor seventh flat five 3rd inversion": ["E", "F#", "A", "C"],
-    "G minor seventh flat five root": ["G", "Bb", "Db", "F"],
-    "G minor seventh flat five 1st inversion": ["Bb", "Db", "F", "G"],
-    "G minor seventh flat five 2nd inversion": ["Db", "F", "G", "Bb"],
-    "G minor seventh flat five 3rd inversion": ["F", "G", "Bb", "Db"],
-    "Ab minor seventh flat five root": ["Ab", "Cb", "Ebb", "Gb"],
-    "Ab minor seventh flat five 1st inversion": ["Cb", "Ebb", "Gb", "Ab"],
-    "Ab minor seventh flat five 2nd inversion": ["Ebb", "Gb", "Ab", "Cb"],
-    "Ab minor seventh flat five 3rd inversion": ["Gb", "Ab", "Cb", "Ebb"],
-    "A minor seventh flat five root": ["A", "C", "Eb", "G"],
-    "A minor seventh flat five 1st inversion": ["C", "Eb", "G", "A"],
-    "A minor seventh flat five 2nd inversion": ["Eb", "G", "A", "C"],
-    "A minor seventh flat five 3rd inversion": ["G", "A", "C", "Eb"],
-    "Bb minor seventh flat five root": ["Bb", "Db", "Fb", "Ab"],
-    "Bb minor seventh flat five 1st inversion": ["Db", "Fb", "Ab", "Bb"],
-    "Bb minor seventh flat five 2nd inversion": ["Fb", "Ab", "Bb", "Db"],
-    "Bb minor seventh flat five 3rd inversion": ["Ab", "Bb", "Db", "Fb"],
-    "B minor seventh flat five root": ["B", "D", "F", "A"],
-    "B minor seventh flat five 1st inversion": ["D", "F", "A", "B"],
-    "B minor seventh flat five 2nd inversion": ["F", "A", "B", "D"],
-    "B minor seventh flat five 3rd inversion": ["A", "B", "D", "F"],
-    # ... (add all diminished chords similarly)
+# 🎶 Chord definitions relative to root
+CHORD_STRUCTURES = {
+    "major": [0, 4, 7],
+    "minor": [0, 3, 7]
 }
 
-# --- MOBILE-FRIENDLY BUTTONS CSS ---
-st.markdown("""
-<style>
-/* Shrink buttons on mobile */
-@media (max-width: 600px) {
-    div.stButton > button {
-        padding: 4px 8px;
-        font-size: 12px;
-        margin-bottom: 4px;
-    }
+INVERSIONS = {
+    "root": [0, 1, 2],
+    "1st": [1, 2, 0],
+    "2nd": [2, 0, 1],
 }
-</style>
-""", unsafe_allow_html=True)
 
-# --- Group chords by base name ---
-grouped_chords = defaultdict(list)
-for chord_name in CHORDS.keys():
-    words = chord_name.split()
-    if "major" in words or "minor" in words or "diminished" in words:
-        if "seventh" in chord_name or "flat five" in chord_name or "dominant" in chord_name:
-            base = " ".join(words[:3])
-        else:
-            base = " ".join(words[:2])
-    else:
-        base = " ".join(words[:2])
-    grouped_chords[base].append(chord_name)
+# Keys to work with
+KEYS = {
+    "C major": ["C", "D", "E", "F", "G", "A", "B"],
+    "A minor": ["A", "B", "C", "D", "E", "F", "G"],
+    "G major": ["G", "A", "B", "C", "D", "E", "F#"],
+    "E minor": ["E", "F#", "G", "A", "B", "C", "D"],
+}
 
-# --- Sidebar selection ---
-st.sidebar.title("Select Chords for Quiz")
-selected_base_chords = []
+SEMI_TO_NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+NOTE_TO_SEMI = {n: i for i, n in enumerate(SEMI_TO_NOTE)}
 
-categories = {"Major": [], "Minor": [], "Diminished": [], "Sevenths & Extensions": []}
+def note_name_to_midi(note):
+    name, octave = note[:-1], int(note[-1])
+    return NOTE_TO_SEMI[name] + 12 * octave
 
-for base in grouped_chords.keys():
-    if "major" in base and "seventh" not in base:
-        categories["Major"].append(base)
-    elif "minor" in base and "seventh" not in base:
-        categories["Minor"].append(base)
-    elif "diminished" in base:
-        categories["Diminished"].append(base)
-    else:
-        categories["Sevenths & Extensions"].append(base)
+def midi_to_note_name(midi):
+    octave = midi // 12
+    name = SEMI_TO_NOTE[midi % 12]
+    return f"{name}{octave}"
 
-for cat in categories:
-    categories[cat].sort()
+def build_chord(root, quality, inversion="root", octave=4):
+    """Return chord note list given root, quality, and inversion, centered in keyboard range"""
+    base_midi = NOTE_TO_SEMI[root] + 12 * octave
+    intervals = CHORD_STRUCTURES[quality]
+    notes = [base_midi + i for i in intervals]
 
-for cat, bases in categories.items():
-    with st.sidebar.expander(cat, expanded=True):
-        for base in bases:
-            if st.checkbox(base, value=base in ["C major", "A minor", "E minor", "G major"]):
-                selected_base_chords.append(base)
+    # Apply inversion
+    inv_order = INVERSIONS[inversion]
+    notes = [notes[i] for i in inv_order]
+    for j in range(inv_order[0]):
+        notes[j] += 12
 
-if not selected_base_chords:
-    st.warning("Please select at least one chord.")
-    st.stop()
+    # Center chord inside 25-key window (C3–C5)
+    lowest = min(notes)
+    highest = max(notes)
+    mid = (lowest + highest) // 2
+    center_target = note_name_to_midi("C4")  # aim near middle C
+    shift = (center_target - mid)
+    notes = [n + shift for n in notes]
 
-# --- Build selected chords dict ---
-selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
-all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
+    return [midi_to_note_name(n) for n in notes]
 
-# --- Initialize session state ---
-if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
-    st.session_state.current_chord = random.choice(all_selected_chords)
+def draw_keyboard(highlight_notes):
+    fig, ax = plt.subplots(figsize=(10,2))
+    white_key_width = 1
+    black_key_width = 0.6
+    white_key_height = 4
+    black_key_height = 2.5
 
-if "attempts" not in st.session_state:
-    st.session_state.attempts = {}
+    # Build map for fast highlight
+    highlight_set = set(highlight_notes)
 
-if "show_result" not in st.session_state:
-    st.session_state.show_result = False
-if "last_attempt" not in st.session_state:
-    st.session_state.last_attempt = None
+    # Draw white keys
+    white_positions = []
+    key_index = 0
+    for midi in range(note_name_to_midi("C3"), note_name_to_midi("C5")+1):
+        note = midi_to_note_name(midi)
+        if note[:-1] in WHITE_KEYS:
+            x = len(white_positions)
+            white_positions.append((note,x))
+            color = "yellow" if note in highlight_set else "white"
+            ax.add_patch(plt.Rectangle((x,0), white_key_width, white_key_height, fill=True, edgecolor="black", facecolor=color))
 
-# --- Next chord ---
-if st.button("Next Chord"):
-    remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
-    if remaining_chords:
-        st.session_state.current_chord = random.choice(remaining_chords)
-    st.session_state.attempts[st.session_state.current_chord] = []
-    st.session_state.show_result = False
-    st.session_state.last_attempt = None
+    # Draw black keys
+    black_offsets = {"C":0.7,"D":1.7,"F":3.7,"G":4.7,"A":5.7}
+    for note, x in white_positions:
+        base = note[:-1]
+        octave = int(note[-1])
+        if base in black_offsets:
+            black_note = base+"#"+str(octave)
+            if black_note in NOTES:  # inside range
+                bx = x+black_offsets[base]
+                color = "orange" if black_note in highlight_set else "black"
+                ax.add_patch(plt.Rectangle((bx,0), black_key_width, black_key_height, fill=True, edgecolor="black", facecolor=color,zorder=2))
 
-chord_key = st.session_state.current_chord
-st.write(f"### Notes: {', '.join(CHORDS[chord_key])}")
+    ax.set_xlim(0,len(white_positions))
+    ax.set_ylim(0,white_key_height)
+    ax.axis("off")
+    return fig
 
-# --- Handle button clicks ---
-def handle_option(option):
-    clicked = st.button(option, key=f"{chord_key}_{option}")
-    if clicked:
-        if chord_key not in st.session_state.attempts:
-            st.session_state.attempts[chord_key] = []
-        if option not in st.session_state.attempts[chord_key]:
-            st.session_state.attempts[chord_key].append(option)
-        st.session_state.show_result = True
-        st.session_state.last_attempt = option
-    return clicked
+# ---------------- Streamlit App ----------------
+st.title("🎹 Chord Trainer")
 
-# --- Display columns of options with feedback ---
-sorted_bases = sorted(selected_base_chords)
-cols = st.columns(len(sorted_bases))
+mode = st.sidebar.radio("Choose Mode", ["Name the Shape", "Identify the Shape"])
 
-for col_idx, base in enumerate(sorted_bases):
-    with cols[col_idx]:
-        st.write(f"**{base}**")
-        options = selected_chords_dict[base]
+active_keys = st.sidebar.multiselect("Select Keys", list(KEYS.keys()), default=["C major","A minor","G major","E minor"])
 
-        # Root chord first
-        root_options = [opt for opt in options if "root" in opt.lower()]
-        other_options = [opt for opt in options if "root" not in opt.lower()]
-        options_sorted = root_options + sorted(other_options)
+if st.button("New Question"):
+    if active_keys:
+        chosen_key = random.choice(active_keys)
+        scale = KEYS[chosen_key]
+        quality = random.choice(["major","minor"])
+        root = random.choice(scale)
+        inversion = random.choice(list(INVERSIONS.keys()))
 
-        for option in options_sorted:
-            handle_option(option)
+        correct_chord = build_chord(root, quality, inversion)
+        correct_label = f"{root} {quality} ({inversion})"
 
-            # Feedback coloring for attempted options
-            attempts = st.session_state.attempts.get(chord_key, [])
-            if option in attempts:
-                if option == chord_key:
-                    st.success(f"{option} ✅")
+        if mode == "Name the Shape":
+            st.write("**Which chord is this?**")
+            fig = draw_keyboard(correct_chord)
+            st.pyplot(fig)
+
+            guess = st.text_input("Your Answer (e.g. C major (root))")
+            if guess:
+                if guess.strip().lower() == correct_label.lower():
+                    st.success("✅ Correct!")
                 else:
-                    st.error(f"{option} ❌")
+                    st.error(f"❌ Wrong. It was {correct_label}")
 
-# --- Display bottom feedback ---
-attempts = st.session_state.attempts.get(chord_key, [])
-if attempts and st.session_state.last_attempt:
-    if st.session_state.last_attempt == chord_key:
-        st.success(f"✅ Correct! It was {chord_key}")
-    else:
-        st.error(f"❌ Incorrect. Try again!")
+        elif mode == "Identify the Shape":
+            st.write("**Which diagram matches the chord below?**")
+            st.write(f"Chord: {correct_label}")
+
+            # generate 3 wrong answers
+            options = [(correct_chord, True)]
+            while len(options) < 4:
+                wrong_key = random.choice(active_keys)
+                wrong_scale = KEYS[wrong_key]
+                wrong_quality = random.choice(["major","minor"])
+                wrong_root = random.choice(wrong_scale)
+                wrong_inversion = random.choice(list(INVERSIONS.keys()))
+                wrong_chord = build_chord(wrong_root, wrong_quality, wrong_inversion)
+                if wrong_chord != correct_chord:
+                    options.append((wrong_chord, False))
+
+            random.shuffle(options)
+
+            # display options
+            cols = st.columns(2)
+            for i, (chord, is_correct) in enumerate(options):
+                with cols[i%2]:
+                    fig = draw_keyboard(chord)
+                    st.pyplot(fig)
+                    if st.button(f"Select Option {i+1}", key=f"opt{i}"):
+                        if is_correct:
+                            st.success("✅ Correct!")
+                        else:
+                            st.error("❌ Wrong!")

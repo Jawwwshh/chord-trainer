@@ -466,11 +466,13 @@ elif mode == "Playing the Position":
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):
-    """
-    Generates a 25-key segment of a keyboard with black and white keys correctly positioned.
-    highlight_notes should be note names like ['C', 'E', 'G'].
-    """
-    key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+        """
+        Generates a 25-key segment of a keyboard with black and white keys correctly positioned.
+        highlight_notes should be note names like ['C', 'E', 'G'].
+        """
+        key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+    # rest of your code...
+
     # Generate the 25 keys in order
     keyboard_notes = []
     octave = 0

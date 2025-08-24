@@ -21,24 +21,51 @@ INVERSIONS = {
 # -------------------
 # Draw piano
 # -------------------
-def draw_keyboard(highlight_notes):
-    fig, ax = plt.subplots(figsize=(8, 3))
-    white_keys = list(range(25))
-    black_keys = [1, 3, 6, 8, 10, 13, 15, 18, 20, 22]
+def draw_keyboard(chord_midis, start_note="C3", end_note="C5"):
+    # chord_midis should be MIDI ints (you already convert with note_name_to_midi)
+    start = note_name_to_midi(start_note)
+    end = note_name_to_midi(end_note)
 
-    # Draw white keys
-    for i in white_keys:
-        color = "yellow" if i in highlight_notes else "white"
-        ax.add_patch(plt.Rectangle((i, 0), 1, 4, facecolor=color, edgecolor="black"))
+    WHITE_SEMITONES = {0, 2, 4, 5, 7, 9, 11}   # C D E F G A B
+    BLACK_AFTER_WHITE = {0, 2, 5, 7, 9}        # C, D, F, G, A (their sharps)
 
-    # Draw black keys
-    for i in black_keys:
-        if 0 <= i < 25:
-            color = "red" if i in highlight_notes else "black"
-            ax.add_patch(plt.Rectangle((i - 0.3, 2), 0.6, 2, facecolor=color, edgecolor="black"))
+    # Map each WHITE key in range to an x position (one unit per white key)
+    white_midi_to_x = {}
+    white_order = []
+    x = 0
+    for m in range(start, end + 1):
+        if m % 12 in WHITE_SEMITONES:
+            white_midi_to_x[m] = x
+            white_order.append(m)
+            x += 1
 
-    ax.set_xlim(0, 25)
-    ax.set_ylim(0, 4)
+    # Figure sizing
+    white_w, white_h = 1.0, 4.0
+    black_w, black_h = 0.6, 2.6
+
+    fig, ax = plt.subplots(figsize=(10, 3))
+    chord_set = set(chord_midis)
+
+    # Draw white keys (base layer)
+    for m in white_order:
+        wx = white_midi_to_x[m]
+        face = "yellow" if m in chord_set else "white"
+        ax.add_patch(plt.Rectangle((wx, 0), white_w, white_h, facecolor=face, edgecolor="black", zorder=1))
+
+    # Draw black keys (overlay, positioned between adjacent whites)
+    for m in white_order:
+        if (m % 12) in BLACK_AFTER_WHITE:
+            b = m + 1  # the sharp right after this white
+            if start <= b <= end:
+                wx = white_midi_to_x[m]
+                # center the black key between this white and the next white
+                bx = wx + 1 - black_w / 2
+                face = "red" if b in chord_set else "black"
+                ax.add_patch(plt.Rectangle((bx, white_h - black_h), black_w, black_h,
+                                           facecolor=face, edgecolor="black", zorder=2))
+
+    ax.set_xlim(0, len(white_order))
+    ax.set_ylim(0, white_h)
     ax.axis("off")
     st.pyplot(fig)
 

@@ -380,9 +380,9 @@ if not selected_base_chords:
     st.warning("Please select at least one chord.")
     st.stop()
 
- # --- Build selected chords dict ---
-    selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
-    all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
+# --- Build selected chords dict ---
+selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
+all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
 if mode == "identify the position":
     # --- Initialize session state ---

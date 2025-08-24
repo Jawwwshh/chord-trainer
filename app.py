@@ -466,39 +466,55 @@ elif mode == "Playing the Position":
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):
-        """
-        Generates a 25-key section of a keyboard with black and white keys.
-        highlight_notes should be note names like ['C', 'E', 'G'].
-        """
-        key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
-        keyboard_notes = key_order * 3
-        keyboard_notes = keyboard_notes[:keys_visible]
+    """
+    Generates a 25-key segment of a keyboard with black and white keys correctly positioned.
+    highlight_notes should be note names like ['C', 'E', 'G'].
+    """
+    key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+    # Generate the 25 keys in order
+    keyboard_notes = []
+    octave = 0
+    while len(keyboard_notes) < keys_visible:
+        for note in key_order:
+            keyboard_notes.append(f"{note}{octave}")
+            if len(keyboard_notes) >= keys_visible:
+                break
+        octave += 1
 
-        img_width, img_height = 500, 120
-        white_key_height = img_height
-        black_key_height = int(img_height * 0.6)
-        white_key_width = img_width / keys_visible
+    img_width, img_height = 500, 120
+    white_key_height = img_height
+    black_key_height = int(img_height * 0.6)
 
-        img = Image.new("RGB", (img_width, img_height), "grey")
-        draw = ImageDraw.Draw(img)
+    # Count white keys for width
+    white_keys = [note for note in keyboard_notes if "#" not in note]
+    white_key_width = img_width / len(white_keys)
 
-        # Draw white keys
-        for idx, note in enumerate(keyboard_notes):
-            if "#" not in note:
-                x0 = idx * white_key_width
-                x1 = x0 + white_key_width
-                color = "yellow" if note in highlight_notes else "white"
-                draw.rectangle([x0, 0, x1, white_key_height], fill=color, outline="black")
+    img = Image.new("RGB", (img_width, img_height), "white")
+    draw = ImageDraw.Draw(img)
 
-        # Draw black keys on top
-        for idx, note in enumerate(keyboard_notes):
-            if "#" in note:
-                x0 = idx * white_key_width + white_key_width * 0.65
+    # Draw white keys
+    white_key_positions = {}
+    x = 0
+    for note in keyboard_notes:
+        if "#" not in note:
+            color = "yellow" if note[:-1] in highlight_notes else "white"
+            draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=color, outline="black")
+            white_key_positions[note] = x
+            x += white_key_width
+
+    # Draw black keys
+    for idx, note in enumerate(keyboard_notes):
+        if "#" in note:
+            # Black keys sit between white keys
+            left_note_idx = idx - 1
+            if keyboard_notes[left_note_idx] in white_key_positions:
+                x0 = white_key_positions[keyboard_notes[left_note_idx]] + white_key_width * 0.65
                 x1 = x0 + white_key_width * 0.7
-                color = "yellow" if note in highlight_notes else "black"
+                color = "yellow" if note[:-1] in highlight_notes else "black"
                 draw.rectangle([x0, 0, x1, black_key_height], fill=color, outline="black")
 
-        return img
+    return img
+
 
     # --- Prepare answer options ---
     correct_notes = CHORDS[current_chord]

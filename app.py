@@ -455,14 +455,47 @@ if mode == "identify the position":
             st.error(f"❌ Incorrect. Try again!")
 
 elif mode == "Playing the Position":
-    # --- PLAYING THE POSITION MODE ---
-    if not selected_base_chords:
-        st.warning("Please select at least one chord.")
-        st.stop()
+    # --- Initialize session state ---
+    if "play_current_chord" not in st.session_state:
+        st.session_state.play_current_chord = random.choice(all_selected_chords)
+        st.session_state.play_feedback = ""
+        st.session_state.play_clicked_option = None
 
-    # Pick a random chord for question
-    current_chord = random.choice(all_selected_chords)
+    # --- Next chord button ---
+    if st.button("Next Chord"):
+        st.session_state.play_current_chord = random.choice(all_selected_chords)
+        st.session_state.play_feedback = ""
+        st.session_state.play_clicked_option = None
+
+    current_chord = st.session_state.play_current_chord
     st.write(f"### Which diagram shows: {current_chord}?")
+
+    # Generate images for current question
+    correct_notes = CHORDS[current_chord]
+    correct_img = generate_keyboard_image(correct_notes)
+
+    other_chords = [ch for ch in all_selected_chords if ch != current_chord]
+    wrong_chords = random.sample(other_chords, min(3, len(other_chords)))
+    wrong_imgs = [generate_keyboard_image(CHORDS[ch]) for ch in wrong_chords]
+
+    options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
+    random.shuffle(options)
+
+    # --- Display options ---
+    cols = st.columns(len(options))
+    for idx, (chord_name, img) in enumerate(options):
+        with cols[idx]:
+            st.image(img)
+            if st.button("Select", key=f"play_{chord_name}"):
+                st.session_state.play_clicked_option = chord_name
+                if chord_name == current_chord:
+                    st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
+                else:
+                    st.session_state.play_feedback = f"❌ Incorrect, try again! You selected: {chord_name}"
+
+    # --- Show feedback ---
+    if st.session_state.play_feedback:
+        st.info(st.session_state.play_feedback)
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, keys_visible=25):

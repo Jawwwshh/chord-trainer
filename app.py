@@ -398,7 +398,7 @@ if mode == "identify the position":
         st.session_state.last_attempt = None
 
     # --- Next chord ---
-    if st.button("Next Chord"):
+    if st.button("Next Chord", key="next_chord_position"):
         remaining_chords = [ch for ch in all_selected_chords if ch != st.session_state.current_chord]
         if remaining_chords:
             st.session_state.current_chord = random.choice(remaining_chords)
@@ -885,7 +885,7 @@ if "play_options" not in st.session_state:
     st.session_state.play_options = None
 
 # --- Next chord button ---
-if st.button("Next Chord"):
+if st.button("Next Chord", key="next_chord_play"):
     pool = [ch for ch in available_chords if ch != st.session_state.play_current_chord] or available_chords
     st.session_state.play_current_chord = random.choice(pool)
     st.session_state.play_feedback = ""

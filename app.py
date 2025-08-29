@@ -875,12 +875,14 @@ elif mode == "Playing the Position":
         st.stop()
 
 # --- Initialize session state ---
-if ("play_current_chord" not in st.session_state
-    or st.session_state.play_current_chord not in available_chords):
+if "play_current_chord" not in st.session_state:
     st.session_state.play_current_chord = random.choice(available_chords)
     st.session_state.play_feedback = ""
     st.session_state.play_clicked_option = None
-    st.session_state.play_options = None  # store options persistently
+
+# Always ensure play_options exists
+if "play_options" not in st.session_state:
+    st.session_state.play_options = None
 
 # --- Next chord button ---
 if st.button("Next Chord"):

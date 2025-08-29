@@ -874,24 +874,27 @@ elif mode == "Playing the Position":
         st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS (above) using the exact chord names.")
         st.stop()
 
-    # --- Initialize session state ---
-    if ("play_current_chord" not in st.session_state
-        or st.session_state.play_current_chord not in available_chords):
-        st.session_state.play_current_chord = random.choice(available_chords)
-        st.session_state.play_feedback = ""
-        st.session_state.play_clicked_option = None
+# --- Initialize session state ---
+if ("play_current_chord" not in st.session_state
+    or st.session_state.play_current_chord not in available_chords):
+    st.session_state.play_current_chord = random.choice(available_chords)
+    st.session_state.play_feedback = ""
+    st.session_state.play_clicked_option = None
+    st.session_state.play_options = None  # store options persistently
 
-    # --- Next chord button ---
-    if st.button("Next Chord"):
-        pool = [ch for ch in available_chords if ch != st.session_state.play_current_chord] or available_chords
-        st.session_state.play_current_chord = random.choice(pool)
-        st.session_state.play_feedback = ""
-        st.session_state.play_clicked_option = None
+# --- Next chord button ---
+if st.button("Next Chord"):
+    pool = [ch for ch in available_chords if ch != st.session_state.play_current_chord] or available_chords
+    st.session_state.play_current_chord = random.choice(pool)
+    st.session_state.play_feedback = ""
+    st.session_state.play_clicked_option = None
+    st.session_state.play_options = None  # reset options
 
-    current_chord = st.session_state.play_current_chord
-    st.write(f"### Which diagram shows: {current_chord}?")
+current_chord = st.session_state.play_current_chord
+st.write(f"### Which diagram shows: {current_chord}?")
 
-    # --- Generate options ---
+# --- Generate options (only once per chord) ---
+if st.session_state.play_options is None:
     correct_notes = CHORD_VOICINGS[current_chord]
     correct_img = generate_keyboard_image(correct_notes)
 
@@ -902,18 +905,20 @@ elif mode == "Playing the Position":
     options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
     random.shuffle(options)
 
-    # --- Display options with buttons ---
-    cols = st.columns(len(options))
-    for idx, (chord_name, img) in enumerate(options):
-        with cols[idx]:
-            st.image(img)
-            if st.button("Select", key=f"play_{chord_name}"):
-                st.session_state.play_clicked_option = chord_name
-                if chord_name == current_chord:
-                    st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
-                else:
-                    st.session_state.play_feedback = f"❌ Incorrect, try again! You selected: {chord_name}"
+    st.session_state.play_options = options  # save for consistency
 
-    # --- Show feedback ---
-    if st.session_state.play_feedback:
-        st.info(st.session_state.play_feedback)
+# --- Display options with buttons ---
+cols = st.columns(len(st.session_state.play_options))
+for idx, (chord_name, img) in enumerate(st.session_state.play_options):
+    with cols[idx]:
+        st.image(img)
+        if st.button("Select", key=f"play_{chord_name}"):
+            st.session_state.play_clicked_option = chord_name
+            if chord_name == current_chord:
+                st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
+            else:
+                st.session_state.play_feedback = f"❌ Incorrect, that was {chord_name}. Try again!"
+
+# --- Show feedback ---
+if st.session_state.play_feedback:
+    st.info(st.session_state.play_feedback)

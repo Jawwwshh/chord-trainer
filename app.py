@@ -9,6 +9,24 @@ from Chords.voicings import CHORD_VOICINGS
 
 # --- MODE SELECTION (top of page) ---
 mode = st.sidebar.selectbox("Select Mode", ["identify the position", "Playing the Position"])
+reset_session_state_for_mode(mode)
+
+def reset_session_state_for_mode(mode_to_keep):
+    """Reset session state keys for the mode not currently selected."""
+    # Keys for identify the position
+    identify_keys = ["current_chord", "attempts", "show_result", "last_attempt"]
+    # Keys for playing the position
+    play_keys = ["play_current_chord", "play_feedback", "play_clicked_option", "play_options"]
+
+    if mode_to_keep == "identify the position":
+        for key in play_keys:
+            if key in st.session_state:
+                del st.session_state[key]
+    elif mode_to_keep == "Playing the Position":
+        for key in identify_keys:
+            if key in st.session_state:
+                del st.session_state[key]
+
 
 # --- MOBILE-FRIENDLY BUTTONS CSS ---
 st.markdown("""

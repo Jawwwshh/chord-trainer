@@ -258,7 +258,9 @@ elif mode == "Playing the Position":
         </form>
         """
         st.markdown(html, unsafe_allow_html=True)
-        return key in st.experimental_get_query_params()
+        
+        # ✅ Updated to new API
+        return key in st.query_params
 
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:

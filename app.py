@@ -169,6 +169,7 @@ elif mode == "Playing the Position":
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, low_note="C3", high_note="C6"):
         import re
+        from PIL import Image, ImageDraw
 
         key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
         naturals_to_index = {"C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11}
@@ -180,20 +181,17 @@ elif mode == "Playing the Position":
             letter = m.group(1).upper()
             accidental = m.group(2)
             octave = int(m.group(3))
-
             semitone = naturals_to_index[letter]
             if accidental == "#":
                 semitone += 1
             elif accidental == "b":
                 semitone -= 1
-
             if semitone >= 12:
                 semitone -= 12
                 octave += 1
             elif semitone < 0:
                 semitone += 12
                 octave -= 1
-
             return f"{key_order[semitone]}{octave}"
 
         highlight_sharp = {to_sharp(n) for n in highlight_notes}
@@ -216,13 +214,10 @@ elif mode == "Playing the Position":
         img_width, img_height = 700, 150
         white_key_height = img_height
         black_key_height = int(img_height * 0.6)
-
         white_keys = [n for n in keyboard_notes if "#" not in n]
         white_key_width = img_width / len(white_keys)
-
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
-
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
@@ -231,7 +226,6 @@ elif mode == "Playing the Position":
                 draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=fill, outline="black")
                 white_key_positions[note] = x
                 x += white_key_width
-
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
                 left_idx = idx - 1
@@ -240,27 +234,16 @@ elif mode == "Playing the Position":
                     x1 = x0 + white_key_width * 0.7
                     fill = "yellow" if note in highlight_sharp else "black"
                     draw.rectangle([x0, 0, x1, black_key_height], fill=fill, outline="black")
-
         return img
 
-    # --- Helper: clickable image ---
+    # --- Display clickable images using Streamlit buttons ---
     def clickable_image(img, key):
-        """Display image as clickable button, returns True if clicked."""
+        """Render image above a Streamlit button; returns True if clicked."""
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
-
-        html = f"""
-        <form action="" method="post">
-            <button name="{key}" type="submit" style="border:none; padding:0; background:none;">
-                <img src="data:image/png;base64,{img_str}" style="width:100%;">
-            </button>
-        </form>
-        """
-        st.markdown(html, unsafe_allow_html=True)
-        
-        # ✅ Updated to new API
-        return key in st.query_params
+        st.markdown(f'<img src="data:image/png;base64,{img_str}" style="width:100%;">', unsafe_allow_html=True)
+        return st.button("", key=key)  # empty label; click the image above
 
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
@@ -288,16 +271,14 @@ elif mode == "Playing the Position":
     if st.session_state.play_options is None:
         correct_notes = CHORD_VOICINGS[current_chord]
         correct_img = generate_keyboard_image(correct_notes)
-
         other_chords = [ch for ch in available_chords if ch != current_chord]
         wrong_chords = random.sample(other_chords, min(3, len(other_chords)))
         wrong_imgs = [generate_keyboard_image(CHORD_VOICINGS[ch]) for ch in wrong_chords]
-
         options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
         random.shuffle(options)
         st.session_state.play_options = options
 
-    # --- Display clickable images ---
+    # --- Display clickable images in columns ---
     cols = st.columns(len(st.session_state.play_options))
     for idx, (chord_name, img) in enumerate(st.session_state.play_options):
         with cols[idx]:

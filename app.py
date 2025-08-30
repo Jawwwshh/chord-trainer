@@ -164,7 +164,6 @@ if mode == "identify the position":
 # ---------------------------
 elif mode == "Playing the Position":
     import io
-    import base64
     import random
     from PIL import Image, ImageDraw
 
@@ -238,15 +237,13 @@ elif mode == "Playing the Position":
                     draw.rectangle([x0, 0, x1, black_key_height], fill=fill, outline="black")
         return img
 
-    # --- Clickable image using Streamlit button ---
+    # --- Clickable image (image + hidden button) ---
     def clickable_image(img, key):
-        """Display an image as a button; returns True if clicked."""
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        return st.button(f'<img src="data:image/png;base64,{img_str}" style="width:100%; cursor:pointer;">',
-                         key=key, unsafe_allow_html=True)
+        """Display image and return True if user clicks it."""
+        st.image(img, use_column_width=True)
+        return st.button(" ", key=key)  # empty label, invisible button below image
 
+    # --- Available chords ---
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
         st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS using the exact chord names.")

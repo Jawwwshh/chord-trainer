@@ -1,4 +1,4 @@
-    RAW_VOICINGS = """
+RAW_VOICINGS = """
     C major root: C4 E4 G4
     C major 1st inversion: E3 G3 C4
     C major 2nd inversion: G3 C4 E4

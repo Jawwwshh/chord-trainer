@@ -163,6 +163,9 @@ if mode == "identify the position":
 # PLAYING THE POSITION MODE
 # ---------------------------
 elif mode == "Playing the Position":
+    import io
+    import base64
+
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, low_note="C3", high_note="C6"):
         import re
@@ -240,6 +243,23 @@ elif mode == "Playing the Position":
 
         return img
 
+    # --- Helper: clickable image ---
+    def clickable_image(img, key):
+        """Display image as clickable button, returns True if clicked."""
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        html = f"""
+        <form action="" method="post">
+            <button name="{key}" type="submit" style="border:none; padding:0; background:none;">
+                <img src="data:image/png;base64,{img_str}" style="width:100%;">
+            </button>
+        </form>
+        """
+        st.markdown(html, unsafe_allow_html=True)
+        return key in st.experimental_get_query_params()
+
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
         st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS using the exact chord names.")
@@ -275,14 +295,11 @@ elif mode == "Playing the Position":
         random.shuffle(options)
         st.session_state.play_options = options
 
-    # --- Display clickable images as buttons ---
+    # --- Display clickable images ---
     cols = st.columns(len(st.session_state.play_options))
     for idx, (chord_name, img) in enumerate(st.session_state.play_options):
         with cols[idx]:
-            # Clickable button with image as content
-            clicked = st.button("", key=f"play_{chord_name}", help="Click the image")
-            st.image(img, use_container_width=True)  # fixed deprecated parameter
-            if clicked:
+            if clickable_image(img, key=f"play_{chord_name}"):
                 st.session_state.play_clicked_option = chord_name
                 if chord_name == current_chord:
                     st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
@@ -292,3 +309,4 @@ elif mode == "Playing the Position":
     # --- Show feedback ---
     if st.session_state.play_feedback:
         st.info(st.session_state.play_feedback)
+

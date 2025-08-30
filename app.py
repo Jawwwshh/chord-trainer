@@ -69,17 +69,15 @@ if not selected_base_chords:
 selected_chords_dict = {base: grouped_chords[base] for base in selected_base_chords}
 all_selected_chords = [ch for sublist in selected_chords_dict.values() for ch in sublist]
 
-# From here, your existing "if mode == 'identify the position': ..." 
-# and "elif mode == 'Playing the Position': ..." blocks remain unchanged.
-
+# ---------------------------
+# IDENTIFY THE POSITION MODE
+# ---------------------------
 if mode == "identify the position":
     # --- Initialize session state ---
     if "current_chord" not in st.session_state or st.session_state.current_chord not in all_selected_chords:
         st.session_state.current_chord = random.choice(all_selected_chords)
-
     if "attempts" not in st.session_state:
         st.session_state.attempts = {}
-
     if "show_result" not in st.session_state:
         st.session_state.show_result = False
     if "last_attempt" not in st.session_state:
@@ -142,14 +140,12 @@ if mode == "identify the position":
         else:
             st.error(f"❌ Incorrect. Try again!")
 
+# ---------------------------
+# PLAYING THE POSITION MODE
+# ---------------------------
 elif mode == "Playing the Position":
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, low_note="C3", high_note="C6"):
-        """
-        Draws a keyboard from low_note to high_note.
-        highlight_notes must be full note names with octaves (e.g. ['C4', 'Eb4', 'G4']).
-        Enharmonics are normalized to sharps (Db->C#, Cb->B, B#->C, etc.).
-        """
         import re
 
         key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
@@ -158,7 +154,7 @@ elif mode == "Playing the Position":
         def to_sharp(note_with_octave: str) -> str:
             m = re.match(r"^([A-Ga-g])([#b]?)(\d)$", note_with_octave.strip())
             if not m:
-                return note_with_octave.strip()  # fail gracefully
+                return note_with_octave.strip()
             letter = m.group(1).upper()
             accidental = m.group(2)
             octave = int(m.group(3))
@@ -169,7 +165,6 @@ elif mode == "Playing the Position":
             elif accidental == "b":
                 semitone -= 1
 
-            # wrap across octaves
             if semitone >= 12:
                 semitone -= 12
                 octave += 1
@@ -179,10 +174,8 @@ elif mode == "Playing the Position":
 
             return f"{key_order[semitone]}{octave}"
 
-        # Normalize the requested highlights to sharp names
         highlight_sharp = {to_sharp(n) for n in highlight_notes}
 
-        # Build keyboard from low_note to high_note (inclusive)
         def split_note(n):
             return n[:-1], int(n[-1])
         low_pc, low_oct = split_note(low_note)
@@ -195,10 +188,9 @@ elif mode == "Playing the Position":
                 keyboard_notes.append(full)
                 if full == high_note:
                     break
-            if keyboard_notes and keyboard_notes[-1] == high_note:
+            if keyboard_notes[-1] == high_note:
                 break
 
-        # Canvas sizing
         img_width, img_height = 700, 150
         white_key_height = img_height
         black_key_height = int(img_height * 0.6)
@@ -206,11 +198,9 @@ elif mode == "Playing the Position":
         white_keys = [n for n in keyboard_notes if "#" not in n]
         white_key_width = img_width / len(white_keys)
 
-        from PIL import Image, ImageDraw
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
 
-        # Draw white keys
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
@@ -220,7 +210,6 @@ elif mode == "Playing the Position":
                 white_key_positions[note] = x
                 x += white_key_width
 
-        # Draw black keys
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
                 left_idx = idx - 1
@@ -232,59 +221,50 @@ elif mode == "Playing the Position":
 
         return img
 
-    # Only quiz from the chords the user selected in the sidebar
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
-        st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS (above) using the exact chord names.")
+        st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS using the exact chord names.")
         st.stop()
 
-# --- Initialize session state ---
-if "play_current_chord" not in st.session_state:
-    st.session_state.play_current_chord = random.choice(available_chords)
-    st.session_state.play_feedback = ""
-    st.session_state.play_clicked_option = None
+    if "play_current_chord" not in st.session_state:
+        st.session_state.play_current_chord = random.choice(available_chords)
+        st.session_state.play_feedback = ""
+        st.session_state.play_clicked_option = None
+    if "play_options" not in st.session_state:
+        st.session_state.play_options = None
 
-# Always ensure play_options exists
-if "play_options" not in st.session_state:
-    st.session_state.play_options = None
+    if st.button("Next Chord", key="next_chord_play"):
+        pool = [ch for ch in available_chords if ch != st.session_state.play_current_chord] or available_chords
+        st.session_state.play_current_chord = random.choice(pool)
+        st.session_state.play_feedback = ""
+        st.session_state.play_clicked_option = None
+        st.session_state.play_options = None
 
-# --- Next chord button ---
-if st.button("Next Chord", key="next_chord_play"):
-    pool = [ch for ch in available_chords if ch != st.session_state.play_current_chord] or available_chords
-    st.session_state.play_current_chord = random.choice(pool)
-    st.session_state.play_feedback = ""
-    st.session_state.play_clicked_option = None
-    st.session_state.play_options = None  # reset options
+    current_chord = st.session_state.play_current_chord
+    st.write(f"### Which diagram shows: {current_chord}?")
 
-current_chord = st.session_state.play_current_chord
-st.write(f"### Which diagram shows: {current_chord}?")
+    if st.session_state.play_options is None:
+        correct_notes = CHORD_VOICINGS[current_chord]
+        correct_img = generate_keyboard_image(correct_notes)
 
-# --- Generate options (only once per chord) ---
-if st.session_state.play_options is None:
-    correct_notes = CHORD_VOICINGS[current_chord]
-    correct_img = generate_keyboard_image(correct_notes)
+        other_chords = [ch for ch in available_chords if ch != current_chord]
+        wrong_chords = random.sample(other_chords, min(3, len(other_chords)))
+        wrong_imgs = [generate_keyboard_image(CHORD_VOICINGS[ch]) for ch in wrong_chords]
 
-    other_chords = [ch for ch in available_chords if ch != current_chord]
-    wrong_chords = random.sample(other_chords, min(3, len(other_chords)))
-    wrong_imgs = [generate_keyboard_image(CHORD_VOICINGS[ch]) for ch in wrong_chords]
+        options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
+        random.shuffle(options)
+        st.session_state.play_options = options
 
-    options = [(current_chord, correct_img)] + list(zip(wrong_chords, wrong_imgs))
-    random.shuffle(options)
+    cols = st.columns(len(st.session_state.play_options))
+    for idx, (chord_name, img) in enumerate(st.session_state.play_options):
+        with cols[idx]:
+            st.image(img)
+            if st.button("Select", key=f"play_{chord_name}"):
+                st.session_state.play_clicked_option = chord_name
+                if chord_name == current_chord:
+                    st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
+                else:
+                    st.session_state.play_feedback = f"❌ Incorrect, that was {chord_name}. Try again!"
 
-    st.session_state.play_options = options  # save for consistency
-
-# --- Display options with buttons ---
-cols = st.columns(len(st.session_state.play_options))
-for idx, (chord_name, img) in enumerate(st.session_state.play_options):
-    with cols[idx]:
-        st.image(img)
-        if st.button("Select", key=f"play_{chord_name}"):
-            st.session_state.play_clicked_option = chord_name
-            if chord_name == current_chord:
-                st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
-            else:
-                st.session_state.play_feedback = f"❌ Incorrect, that was {chord_name}. Try again!"
-
-# --- Show feedback ---
-if st.session_state.play_feedback:
-    st.info(st.session_state.play_feedback)
+    if st.session_state.play_feedback:
+        st.info(st.session_state.play_feedback)

@@ -165,7 +165,7 @@ if mode == "identify the position":
 elif mode == "Playing the Position":
     import io
     import base64
-    import urllib.parse
+    import random
     from PIL import Image, ImageDraw
 
     # --- Generate keyboard images ---
@@ -220,7 +220,6 @@ elif mode == "Playing the Position":
 
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
-
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
@@ -229,7 +228,6 @@ elif mode == "Playing the Position":
                 draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=fill, outline="black")
                 white_key_positions[note] = x
                 x += white_key_width
-
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
                 left_idx = idx - 1
@@ -238,25 +236,16 @@ elif mode == "Playing the Position":
                     x1 = x0 + white_key_width * 0.7
                     fill = "yellow" if note in highlight_sharp else "black"
                     draw.rectangle([x0, 0, x1, black_key_height], fill=fill, outline="black")
-
         return img
 
-    # --- Clickable image using URL query parameters ---
+    # --- Clickable image using Streamlit button ---
     def clickable_image(img, key):
-        """Display an image that can be clicked; returns True if clicked."""
+        """Display an image as a button; returns True if clicked."""
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
-        # Build URL with query parameter
-        url = f"?{urllib.parse.urlencode({key: '1'})}"
-        html = f"""
-        <a href="{url}" style="display:inline-block;">
-            <img src="data:image/png;base64,{img_str}" style="width:100%; cursor:pointer;">
-        </a>
-        """
-        st.markdown(html, unsafe_allow_html=True)
-        # Detect if clicked via query params
-        return key in st.query_params
+        return st.button(f'<img src="data:image/png;base64,{img_str}" style="width:100%; cursor:pointer;">',
+                         key=key, unsafe_allow_html=True)
 
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:

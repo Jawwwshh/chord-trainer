@@ -275,13 +275,13 @@ elif mode == "Playing the Position":
         random.shuffle(options)
         st.session_state.play_options = options
 
-    # --- Display clickable images ---
+    # --- Display clickable images as buttons ---
     cols = st.columns(len(st.session_state.play_options))
     for idx, (chord_name, img) in enumerate(st.session_state.play_options):
         with cols[idx]:
-            # Make the image clickable by wrapping it in a button
-            clicked = st.button("", key=f"play_{chord_name}")  # empty button
-            st.image(img, use_column_width=True)
+            # Clickable button with image as content
+            clicked = st.button("", key=f"play_{chord_name}", help="Click the image")
+            st.image(img, use_container_width=True)  # fixed deprecated parameter
             if clicked:
                 st.session_state.play_clicked_option = chord_name
                 if chord_name == current_chord:
@@ -289,5 +289,6 @@ elif mode == "Playing the Position":
                 else:
                     st.session_state.play_feedback = f"❌ Incorrect, that was {chord_name}. Try again!"
 
+    # --- Show feedback ---
     if st.session_state.play_feedback:
         st.info(st.session_state.play_feedback)

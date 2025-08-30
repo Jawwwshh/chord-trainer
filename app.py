@@ -165,11 +165,12 @@ if mode == "identify the position":
 elif mode == "Playing the Position":
     import io
     import base64
+    import urllib.parse
+    from PIL import Image, ImageDraw
 
     # --- Generate keyboard images ---
     def generate_keyboard_image(highlight_notes, low_note="C3", high_note="C6"):
         import re
-        from PIL import Image, ImageDraw
 
         key_order = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
         naturals_to_index = {"C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11}
@@ -216,8 +217,10 @@ elif mode == "Playing the Position":
         black_key_height = int(img_height * 0.6)
         white_keys = [n for n in keyboard_notes if "#" not in n]
         white_key_width = img_width / len(white_keys)
+
         img = Image.new("RGB", (img_width, img_height), "white")
         draw = ImageDraw.Draw(img)
+
         white_key_positions = {}
         x = 0
         for note in keyboard_notes:
@@ -226,6 +229,7 @@ elif mode == "Playing the Position":
                 draw.rectangle([x, 0, x + white_key_width, white_key_height], fill=fill, outline="black")
                 white_key_positions[note] = x
                 x += white_key_width
+
         for idx, note in enumerate(keyboard_notes):
             if "#" in note:
                 left_idx = idx - 1
@@ -234,16 +238,25 @@ elif mode == "Playing the Position":
                     x1 = x0 + white_key_width * 0.7
                     fill = "yellow" if note in highlight_sharp else "black"
                     draw.rectangle([x0, 0, x1, black_key_height], fill=fill, outline="black")
+
         return img
 
-    # --- Display clickable images using Streamlit buttons ---
+    # --- Clickable image using URL query parameters ---
     def clickable_image(img, key):
-        """Render image above a Streamlit button; returns True if clicked."""
+        """Display an image that can be clicked; returns True if clicked."""
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
-        st.markdown(f'<img src="data:image/png;base64,{img_str}" style="width:100%;">', unsafe_allow_html=True)
-        return st.button("", key=key)  # empty label; click the image above
+        # Build URL with query parameter
+        url = f"?{urllib.parse.urlencode({key: '1'})}"
+        html = f"""
+        <a href="{url}" style="display:inline-block;">
+            <img src="data:image/png;base64,{img_str}" style="width:100%; cursor:pointer;">
+        </a>
+        """
+        st.markdown(html, unsafe_allow_html=True)
+        # Detect if clicked via query params
+        return key in st.query_params
 
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
@@ -292,4 +305,3 @@ elif mode == "Playing the Position":
     # --- Show feedback ---
     if st.session_state.play_feedback:
         st.info(st.session_state.play_feedback)
-

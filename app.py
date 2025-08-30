@@ -237,13 +237,11 @@ elif mode == "Playing the Position":
                     draw.rectangle([x0, 0, x1, black_key_height], fill=fill, outline="black")
         return img
 
-    # --- Clickable image (image + hidden button) ---
+    # --- Clickable image with "Select" button ---
     def clickable_image(img, key):
-        """Display image and return True if user clicks it."""
-        st.image(img, use_column_width=True)
-        return st.button(" ", key=key)  # empty label, invisible button below image
+        st.image(img, use_container_width=True)  # updated parameter
+        return st.button("Select", key=key)
 
-    # --- Available chords ---
     available_chords = [ch for ch in all_selected_chords if ch in CHORD_VOICINGS]
     if not available_chords:
         st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS using the exact chord names.")
@@ -277,7 +275,7 @@ elif mode == "Playing the Position":
         random.shuffle(options)
         st.session_state.play_options = options
 
-    # --- Display clickable images in columns ---
+    # --- Display images with "Select" buttons ---
     cols = st.columns(len(st.session_state.play_options))
     for idx, (chord_name, img) in enumerate(st.session_state.play_options):
         with cols[idx]:
@@ -291,3 +289,4 @@ elif mode == "Playing the Position":
     # --- Show feedback ---
     if st.session_state.play_feedback:
         st.info(st.session_state.play_feedback)
+

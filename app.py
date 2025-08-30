@@ -7,10 +7,7 @@ from PIL import Image, ImageDraw
 from Chords.chords import CHORDS
 from Chords.voicings import CHORD_VOICINGS
 
-# --- MODE SELECTION (top of page) ---
-mode = st.sidebar.selectbox("Select Mode", ["identify the position", "Playing the Position"])
-reset_session_state_for_mode(mode)
-
+# --- Function to reset session state ---
 def reset_session_state_for_mode(mode_to_keep):
     """Reset session state keys for the mode not currently selected."""
     # Keys for identify the position
@@ -27,6 +24,10 @@ def reset_session_state_for_mode(mode_to_keep):
             if key in st.session_state:
                 del st.session_state[key]
 
+
+# --- MODE SELECTION (top of page) ---
+mode = st.sidebar.selectbox("Select Mode", ["identify the position", "Playing the Position"])
+reset_session_state_for_mode(mode)
 
 # --- MOBILE-FRIENDLY BUTTONS CSS ---
 st.markdown("""

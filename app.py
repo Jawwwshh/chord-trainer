@@ -245,6 +245,7 @@ elif mode == "Playing the Position":
         st.warning("None of your selected chords have voicings in the database. Paste your lines into RAW_VOICINGS using the exact chord names.")
         st.stop()
 
+    # --- Initialize session state ---
     if "play_current_chord" not in st.session_state:
         st.session_state.play_current_chord = random.choice(available_chords)
         st.session_state.play_feedback = ""
@@ -274,11 +275,14 @@ elif mode == "Playing the Position":
         random.shuffle(options)
         st.session_state.play_options = options
 
+    # --- Display clickable images ---
     cols = st.columns(len(st.session_state.play_options))
     for idx, (chord_name, img) in enumerate(st.session_state.play_options):
         with cols[idx]:
-            st.image(img)
-            if st.button("Select", key=f"play_{chord_name}"):
+            # Make the image clickable by wrapping it in a button
+            clicked = st.button("", key=f"play_{chord_name}")  # empty button
+            st.image(img, use_column_width=True)
+            if clicked:
                 st.session_state.play_clicked_option = chord_name
                 if chord_name == current_chord:
                     st.session_state.play_feedback = f"✅ Correct! It was {current_chord}"
